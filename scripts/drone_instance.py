@@ -147,9 +147,6 @@ if __name__ == "__main__":
     
     
     drone = Drone()
-
-
-
     # # print(drone.get_device_id())
     # puf_table = drone.PUF_table
     
