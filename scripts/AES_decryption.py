@@ -1,17 +1,18 @@
-import sys
+import sys, os
 from Crypto.Cipher import AES
 from Crypto.Hash import HMAC, SHA256
 
 # Somehow, the receiver securely get aes_key and hmac_key
 # encrypted.bin can be sent over an unsecure channel
 
-f_aes = open("AES_key.bin","rb")
+path = "/home/barracuda/catkin_ws/src/smaps_implementation/bin"
+f_aes = open(os.path.join(path,"AES_key.bin"),"rb")
 aes_key = f_aes.read()
 
-f_hmac = open("hmac_key.bin", "rb")
+f_hmac = open(os.path.join(path,"hmac_key.bin"), "rb")
 hmac_key = f_hmac.read()
 
-with open("encrypted.bin", "rb") as f:
+with open(os.path.join(path,"encrypted.bin"), "rb") as f:
     tag = f.read(32)
     nonce = f.read(8)
     ciphertext = f.read()

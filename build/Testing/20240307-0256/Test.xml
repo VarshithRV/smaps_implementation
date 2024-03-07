@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Site BuildName="(empty)"
+	BuildStamp="20240307-0256-Experimental"
+	Name="barracuda"
+	Generator="ctest-3.16.3"
+	CompilerName="/usr/bin/g++"
+	CompilerVersion="9.4.0"
+	OSName="Linux"
+	Hostname="barracuda"
+	OSRelease="5.15.0-97-generic"
+	OSVersion="#107~20.04.1-Ubuntu SMP Fri Feb 9 14:20:11 UTC 2024"
+	OSPlatform="x86_64"
+	Is64Bits="1"
+	VendorString="GenuineIntel"
+	VendorID="Intel Corporation"
+	FamilyID="6"
+	ModelID="154"
+	ProcessorCacheSize="12288"
+	NumberOfLogicalCPU="12"
+	NumberOfPhysicalCPU="8"
+	TotalVirtualMemory="2047"
+	TotalPhysicalMemory="15657"
+	LogicalProcessorsPerPhysical="1"
+	ProcessorClockFrequency="2500"
+	>
+	<Testing>
+		<StartDateTime>Mar 07 10:56 +08</StartDateTime>
+		<StartTestTime>1709780162</StartTestTime>
+		<TestList/>
+		<EndDateTime>Mar 07 10:56 +08</EndDateTime>
+		<EndTestTime>1709780162</EndTestTime>
+		<ElapsedMinutes>0</ElapsedMinutes>
+	</Testing>
+</Site>
