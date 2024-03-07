@@ -1,16 +1,26 @@
+# this class is a single drone instance that has the following functions:
+# define the device id
+# define its neighbours
+# ability to communicate with the neighbours
+
+
 import os, sys, yaml
 import rospy
+from std_msgs.msg import String
 from Crypto.Cipher import AES
 from Crypto.Hash import HMAC, SHA256
 from Crypto.Random import get_random_bytes
 
 class Drone:
+    
+    
     def __init__(self,args = sys.argv):
         if len(args) != 2:
             print("Usage: python3 drone_instance.py [device_id]")
             sys.exit(1)
         
-        # initialize the paths
+        
+        # initialize the project path
         self.path = "/home/barracuda/catkin_ws/src/smaps_implementation"
         self.PUF_lookup_path = os.path.join(self.path, "PUF_lookup")
         self.config_path = os.path.join(self.path, "config")
@@ -19,6 +29,9 @@ class Drone:
         # get the device id
         ###################
         self.device_id = int(args[1])
+        
+        # initialize drone instance
+        rospy.init_node("drone_"+str(self.device_id), anonymous=True)
         
         # create a PUF_lookup directory and dictionary
         ###################
@@ -45,6 +58,41 @@ class Drone:
         ###################
         self.random = get_random_bytes(16)
 
+        # publisher list for links 
+        ###################
+        self.publisher_list = []
+
+        # create a dictionary for the links with links as keys
+        ###################
+        self.pub_links_dict = {}
+
+        # create the links
+        self.create_links()
+        rospy.spin()
+    
+
+    def create_links(self):
+        for link in self.links:
+            if link>self.device_id:
+                pub =  rospy.Publisher("s"+str(link)+"x"+str(self.device_id)+"s", String, queue_size=10)
+                self.publisher_list.append(pub)
+                self.pub_links_dict[link] = pub
+                rospy.Subscriber("s"+str(link)+"x"+str(self.device_id)+"s", String, self.msgCb)
+            else:
+                pub =  rospy.Publisher("s"+str(self.device_id)+"x"+str(link)+"s", String, queue_size=10)
+                self.publisher_list.append(pub)
+                self.pub_links_dict[link] = pub
+                rospy.Subscriber("s"+str(self.device_id)+"x"+str(link)+"s", String, self.msgCb)
+        # for link in self.links:
+        #     pub =  rospy.Publisher("s"+str(link)+"x"+str(self.device_id)+"y"+str(self.device_id)+"x"+str(link)+"s", String, queue_size=10)
+        #     self.publisher_list.append(pub)
+        #     self.pub_links_dict[link] = pub
+        #     rospy.Subscriber("s"+str(link)+"x"+str(self.device_id)+"y"+str(self.device_id)+"x"+str(link)+"s", String, self.msgCb)
+    
+
+    def msgCb(self,msg:String):
+        print("Received message: ", msg.data)
+    
     def get_device_id(self):
         # print(self.device_id)
         return self.device_id
@@ -96,19 +144,24 @@ class Drone:
 
 
 if __name__ == "__main__":
+    
+    
     drone = Drone()
-    # print(drone.get_device_id())
-    puf_table = drone.PUF_table
+
+
+
+    # # print(drone.get_device_id())
+    # puf_table = drone.PUF_table
     
-    # get the first challenge in the puf table
-    challenge = list(puf_table.keys())[0]
-    response = drone.PUF(challenge)
+    # # get the first challenge in the puf table
+    # challenge = list(puf_table.keys())[0]
+    # response = drone.PUF(challenge)
     
-    # encryption and decryption test
-    message="hello world"
-    tag,nonce,ciphertext = drone.encrypt(message,challenge)
-    de_message = drone.decrypt(tag,nonce,ciphertext,challenge)
-    print(message)
+    # # encryption and decryption test
+    # message="hello world"
+    # tag,nonce,ciphertext = drone.encrypt(message,challenge)
+    # de_message = drone.decrypt(tag,nonce,ciphertext,challenge)
+    # print(message)
 
 
     
