@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<launch>
+
+    <node pkg="smaps_implementation" type="drone_instance.py" name="drone_1"  />
+    <!-- <node pkg="smaps_implementation" type="drone_instance.py" name="drone_2" args=" 2 " /> -->
+    <!-- <node pkg="smaps_implementation" type="drone_instance.py" name="drone_3" args=" 3" /> -->
+
+</launch>

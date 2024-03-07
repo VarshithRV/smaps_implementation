@@ -10,7 +10,8 @@ from std_msgs.msg import String
 from Crypto.Cipher import AES
 from Crypto.Hash import HMAC, SHA256
 from Crypto.Random import get_random_bytes
-
+import time
+from smaps_implementation.msg import Packet
 class Drone:
     
     
@@ -68,30 +69,35 @@ class Drone:
 
         # create the links
         self.create_links()
-        rospy.spin()
+        # rospy.spin()
     
 
     def create_links(self):
         for link in self.links:
             if link>self.device_id:
-                pub =  rospy.Publisher("s"+str(link)+"x"+str(self.device_id)+"s", String, queue_size=10)
+                pub =  rospy.Publisher("s"+str(link)+"x"+str(self.device_id)+"s", Packet, queue_size=10)
                 self.publisher_list.append(pub)
                 self.pub_links_dict[link] = pub
-                rospy.Subscriber("s"+str(link)+"x"+str(self.device_id)+"s", String, self.msgCb)
+                rospy.Subscriber("s"+str(link)+"x"+str(self.device_id)+"s", Packet, self.msgCb)
             else:
-                pub =  rospy.Publisher("s"+str(self.device_id)+"x"+str(link)+"s", String, queue_size=10)
+                pub =  rospy.Publisher("s"+str(self.device_id)+"x"+str(link)+"s", Packet, queue_size=10)
                 self.publisher_list.append(pub)
                 self.pub_links_dict[link] = pub
-                rospy.Subscriber("s"+str(self.device_id)+"x"+str(link)+"s", String, self.msgCb)
-        # for link in self.links:
-        #     pub =  rospy.Publisher("s"+str(link)+"x"+str(self.device_id)+"y"+str(self.device_id)+"x"+str(link)+"s", String, queue_size=10)
-        #     self.publisher_list.append(pub)
-        #     self.pub_links_dict[link] = pub
-        #     rospy.Subscriber("s"+str(link)+"x"+str(self.device_id)+"y"+str(self.device_id)+"x"+str(link)+"s", String, self.msgCb)
+                rospy.Subscriber("s"+str(self.device_id)+"x"+str(link)+"s", Packet, self.msgCb)
     
+    def send_message(self,link,message:Packet):
+        if link not in self.links:
+            print("Link not found")
+            return
+        else:
+            self.pub_links_dict[link].publish(message)
 
-    def msgCb(self,msg:String):
-        print("Received message: ", msg.data)
+
+    def msgCb(self,msg:Packet):
+        if msg.source == self.device_id:
+            pass
+        else:
+            print(self.device_id,": ", msg.data)
     
     def get_device_id(self):
         # print(self.device_id)
@@ -147,18 +153,38 @@ if __name__ == "__main__":
     
     
     drone = Drone()
-    # # print(drone.get_device_id())
-    # puf_table = drone.PUF_table
+
+    print("Device ID : ",drone.get_device_id())
+    puf_table = drone.PUF_table
     
-    # # get the first challenge in the puf table
-    # challenge = list(puf_table.keys())[0]
-    # response = drone.PUF(challenge)
+    # get the first challenge in the puf table
+    challenge = list(puf_table.keys())[0]
+    response = puf_table[challenge]
+    print("CRP queried from the table : ",challenge, response)
+    response = drone.PUF(challenge)
+    print("PUF(challenge) = ", response)
+
+    # encryption and decryption test
+    print("Encryption and Decryption test")
+    message="hello world"
+    print("Plain text: ", message)
+    tag,nonce,ciphertext = drone.encrypt(message,challenge)
+    de_message = drone.decrypt(tag,nonce,ciphertext,challenge)
+    print("Decrypted plaintext : ",message)
+
+    print("Neigbour Device ids") 
+    links = drone.get_links()
+    print(links)
     
-    # # encryption and decryption test
-    # message="hello world"
-    # tag,nonce,ciphertext = drone.encrypt(message,challenge)
-    # de_message = drone.decrypt(tag,nonce,ciphertext,challenge)
-    # print(message)
+    print("Message sending and receiving test, monitor in neighbour's terminal")
+    time.sleep(3)
+    message = Packet()
+    message.source = drone.get_device_id()
+    message.destination = 2
+    message.data = "Hello from "+str(drone.get_device_id())
+    print("Sending message: ", message.data)
+    drone.send_message(message.destination,message)
+    rospy.spin()
 
 
     
