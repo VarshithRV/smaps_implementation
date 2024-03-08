@@ -12,10 +12,14 @@ from Crypto.Hash import HMAC, SHA256
 from Crypto.Random import get_random_bytes
 import time
 from smaps_implementation.msg import Packet
-class Drone:
+
+class Device:
     
     
-    def __init__(self,args = sys.argv):
+    def __init__(self):
+        
+        args = rospy.myargv(argv=sys.argv)
+        
         if len(args) != 2:
             print("Usage: python3 drone_instance.py [device_id]")
             sys.exit(1)
@@ -152,7 +156,7 @@ class Drone:
 if __name__ == "__main__":
     
     
-    drone = Drone()
+    drone = Device()
 
     print("Device ID : ",drone.get_device_id())
     puf_table = drone.PUF_table
