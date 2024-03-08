@@ -8,8 +8,6 @@ import time
 from smaps_implementation.msg import Packet
 
 class Device:
-    
-    
     def __init__(self, device_id):
         
         # initialize the project path
@@ -79,9 +77,10 @@ class Device:
     def send_message(self,link,message:Packet):
         if link not in self.links:
             print("Link not found")
-            return
+            return False
         else:
             self.pub_links_dict[link].publish(message)
+            return True
 
 
     def msgCb(self,msg:Packet):
@@ -102,6 +101,15 @@ class Device:
         # print(self.links)
         return self.links
         # print(self.config)
+    
+    def get_random(self):
+        return self.random
+    
+    def update_random(self):
+        self.random = get_random_bytes(16)
+
+    def get_config(self):    
+        return self.config
     
     def PUF(self,challenge):
         if challenge in self.PUF_table:
@@ -138,13 +146,63 @@ class Device:
         cipher = AES.new(aes_key, AES.MODE_CTR, nonce=nonce)
         message = cipher.decrypt(ciphertext)
         return message.decode()
+    
 
-# create a class called base station that inherits from the drone class
 class BS(Device):
+    
+    def get_PUF_CRP(self,drone_id,n): # get the nth CRP of the drone with id i
+        return list(self.PUF_directory[drone_id].keys())[n], list(self.PUF_directory[drone_id].values())[n]
+
     def __init__(self, args):
+
         super().__init__(0)
 
+        ##################################################
+        # list all attributes from the parent class
+        # 1. device_id - 0
+        # 2. PUF_table - table of device 0s CRP 
+        # 3. config - topology
+        # 4. links - neighbours of device 0
+        # 5. random - random number for device 0
+        # 6. pub_links_dict - dictionary of publishers for the links
+        # 7. self.path = "/home/barracuda/catkin_ws/src/smaps_implementation"
+        # 8. self.PUF_lookup_path = os.path.join(self.path, "PUF_lookup")
+        # 9. self.config_path = os.path.join(self.path, "config")
+        # 10. self.bin_path = os.path.join(self.path, "bin")
 
+        # method from the parent class
+        # 1. Bool send_message(link,message:Packet) - send message to a link
+        # 2. void msgCb(msg:Packet) - callback function for message
+        # 3. int get_device_id() - get the device id
+        # 4. dictionary get_PUF_table() - get the PUF table of device 0
+        # 5. list get_links() - get the links of device 0
+        # 6. bytes PUF(challenge) - get the response from the PUF table of device 0
+        # 7. tag, nonce, ciphertext encrypt(message,key) - encrypt the message
+        # 8. string message decrypt(tag,nonce,ciphertext,key) - decrypt the message
+        ##################################################
+        
+        self.drones = list(self.config.keys())
+        
+        ##################################################
+        
+        self.PUF_directory = {}
+        for i in self.drones: 
+            PUF_table_temp = {}
+            f = open(os.path.join(self.PUF_lookup_path,"PUF_"+str(i)+".bin"), "rb")
+            
+            for j in range(10):
+                challenge = f.read(16)
+                response = f.read(16)
+                PUF_table_temp[challenge] = response
+            f.close()
+            
+            self.PUF_directory[i] = PUF_table_temp
+        
+        ##################################################
+        
+        
+        
+        
 
 if __name__ == "__main__":
     

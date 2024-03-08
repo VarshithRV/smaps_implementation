@@ -85,9 +85,10 @@ class Device:
     def send_message(self,link,message:Packet):
         if link not in self.links:
             print("Link not found")
-            return
+            return False
         else:
             self.pub_links_dict[link].publish(message)
+            return True
 
 
     def msgCb(self,msg:Packet):
@@ -108,6 +109,15 @@ class Device:
         # print(self.links)
         return self.links
         # print(self.config)
+    
+    def get_random(self):
+        return self.random
+    
+    def update_random(self):
+        self.random = get_random_bytes(16)
+
+    def get_config(self):    
+        return self.config
     
     def PUF(self,challenge):
         if challenge in self.PUF_table:
@@ -159,29 +169,30 @@ if __name__ == "__main__":
     challenge = list(puf_table.keys())[0]
     response = puf_table[challenge]
     print("CRP queried from the table : ",challenge, response)
-    response = drone.PUF(challenge)
-    print("PUF(challenge) = ", response)
+    # response = drone.PUF(challenge)
+    # print("PUF(challenge) = ", response)
 
-    # encryption and decryption test
-    print("Encryption and Decryption test")
-    message="hello world"
-    print("Plain text: ", message)
-    tag,nonce,ciphertext = drone.encrypt(message,challenge)
-    de_message = drone.decrypt(tag,nonce,ciphertext,challenge)
-    print("Decrypted plaintext : ",message)
+    # # encryption and decryption test
+    # print("Encryption and Decryption test")
+    # message="hello world"
+    # print("Plain text: ", message)
+    # tag,nonce,ciphertext = drone.encrypt(message,challenge)
+    # de_message = drone.decrypt(tag,nonce,ciphertext,challenge)
+    # print("Decrypted plaintext : ",message)
 
-    print("Neigbour Device ids") 
-    links = drone.get_links()
-    print(links)
+    # print("Neigbour Device ids") 
+    # links = drone.get_links()
+    # print(links)
     
-    print("Message sending and receiving test, monitor in neighbour's terminal")
-    time.sleep(3)
-    message = Packet()
-    message.source = drone.get_device_id()
-    message.destination = 2
-    message.data = "Hello from "+str(drone.get_device_id())
-    print("Sending message: ", message.data)
-    drone.send_message(message.destination,message)
+    # print("Message sending and receiving test, monitor in neighbour's terminal")
+    # time.sleep(3)
+    # message = Packet()
+    # message.source = drone.get_device_id()
+    # message.destination = 2
+    # message.data = "Hello from "+str(drone.get_device_id())
+    # print("Sending message: ", message.data)
+    # drone.send_message(message.destination,message)
+
     rospy.spin()
 
 
