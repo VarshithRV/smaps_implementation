@@ -1,5 +1,6 @@
 <?xml version="1.0"?>
 <launch>
+    <node pkg="smaps_implementation" type="BS.py" name="base_station" />
     <node pkg="smaps_implementation" type="drone_instance.py" name="drone1" output="screen" args="1" />
     <node pkg="smaps_implementation" type="drone_instance.py" name="drone2" output="screen" args="2" />
     <node pkg="smaps_implementation" type="drone_instance.py" name="drone3" output="screen" args="3" />
