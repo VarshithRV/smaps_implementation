@@ -16,14 +16,7 @@ from smaps_implementation.msg import Packet
 class Device:
     
     
-    def __init__(self):
-        
-        args = rospy.myargv(argv=sys.argv)
-        
-        if len(args) != 2:
-            print("Usage: python3 drone_instance.py [device_id]")
-            sys.exit(1)
-        
+    def __init__(self, device_id):
         
         # initialize the project path
         self.path = "/home/barracuda/catkin_ws/src/smaps_implementation"
@@ -33,7 +26,7 @@ class Device:
         
         # get the device id
         ###################
-        self.device_id = int(args[1])
+        self.device_id = device_id
         
         # initialize drone instance
         rospy.init_node("drone_"+str(self.device_id), anonymous=True)
@@ -156,7 +149,8 @@ class Device:
 if __name__ == "__main__":
     
     
-    drone = Device()
+    args = rospy.myargv(argv=sys.argv)
+    drone = Device(int(args[1]))
 
     print("Device ID : ",drone.get_device_id())
     puf_table = drone.PUF_table

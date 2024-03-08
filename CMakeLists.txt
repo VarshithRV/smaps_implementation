@@ -169,6 +169,7 @@ catkin_install_python(PROGRAMS
   scripts/AES_encryption.py
   scripts/AES_decryption.py
   scripts/BS.py
+  scripts/launch_script.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
