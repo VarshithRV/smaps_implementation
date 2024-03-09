@@ -199,11 +199,10 @@ class BS(Device):
             self.PUF_directory[i] = PUF_table_temp
         
         ##################################################
-        
-        
-        
-        
+            
 
+
+            
 if __name__ == "__main__":
     
     args = rospy.myargv(argv=sys.argv)
