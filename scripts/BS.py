@@ -207,7 +207,8 @@ def find_paths(graph,root):
         paths.append(path)
     return paths
 
-
+##################################################
+# Base Station class
 class BS(Device):
     
     def get_PUF_CRP(self,drone_id,n): # get the nth CRP of the drone with id i
@@ -239,6 +240,7 @@ class BS(Device):
         # 6. bytes PUF(challenge) - get the response from the PUF table of device 0
         # 7. tag, nonce, ciphertext encrypt(message,key) - encrypt the message
         # 8. string message decrypt(tag,nonce,ciphertext,key) - decrypt the message
+        
         ##################################################
         # all drones list
         self.drones = list(self.config.keys())
@@ -261,7 +263,7 @@ class BS(Device):
         ##################################################
         # initializing all paths
         self.paths = find_paths(self.config,self.device_id)
-        print(self.paths)
+
         ##################################################
 
 
