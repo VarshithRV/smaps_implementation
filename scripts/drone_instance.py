@@ -68,7 +68,7 @@ class Device:
         self.create_links()
         # rospy.spin()
     
-
+    ############################
     def create_links(self):
         for link in self.links:
             if link>self.device_id:
@@ -81,7 +81,7 @@ class Device:
                 self.publisher_list.append(pub)
                 self.pub_links_dict[link] = pub
                 rospy.Subscriber("s"+str(self.device_id)+"x"+str(link)+"s", Packet, self.msgCb)
-    
+    ############################
     def send_message(self,link,message:Packet):
         if link not in self.links:
             print("Link not found")
@@ -89,8 +89,45 @@ class Device:
         else:
             self.pub_links_dict[link].publish(message)
             return True
+    ############################
+    def encrypt(self,message,key):
 
+        data = message.encode()
+        aes_key = key
+        hmac_key = key
 
+        cipher = AES.new(aes_key, AES.MODE_CTR)
+        ciphertext = cipher.encrypt(data)
+
+        hmac = HMAC.new(hmac_key, digestmod=SHA256)
+        tag = hmac.update(cipher.nonce + ciphertext).digest()
+
+        return tag,cipher.nonce,ciphertext
+    ############################
+    def decrypt(self,tag,nonce,ciphertext,key):
+
+        aes_key = key
+        hmac_key = key
+
+        try:
+            hmac = HMAC.new(hmac_key, digestmod=SHA256)
+            tag = hmac.update(nonce + ciphertext).verify(tag)
+        except ValueError:
+            print("The message was modified!")
+            sys.exit(1)
+
+        cipher = AES.new(aes_key, AES.MODE_CTR, nonce=nonce)
+        message = cipher.decrypt(ciphertext)
+        return message.decode()
+    ############################
+    def PUF(self,challenge):
+        if challenge in self.PUF_table:
+            return self.PUF_table[challenge]
+        else:
+            return None
+    ############################
+    
+    
     def msgCb(self,msg:Packet):
         if msg.source == self.device_id:
             pass
@@ -117,43 +154,7 @@ class Device:
         self.random = get_random_bytes(16)
 
     def get_config(self):    
-        return self.config
-    
-    def PUF(self,challenge):
-        if challenge in self.PUF_table:
-            return self.PUF_table[challenge]
-        else:
-            return None
-        
-    def encrypt(self,message,key):
-
-        data = message.encode()
-        aes_key = key
-        hmac_key = key
-
-        cipher = AES.new(aes_key, AES.MODE_CTR)
-        ciphertext = cipher.encrypt(data)
-
-        hmac = HMAC.new(hmac_key, digestmod=SHA256)
-        tag = hmac.update(cipher.nonce + ciphertext).digest()
-
-        return tag,cipher.nonce,ciphertext
-
-    def decrypt(self,tag,nonce,ciphertext,key):
-
-        aes_key = key
-        hmac_key = key
-
-        try:
-            hmac = HMAC.new(hmac_key, digestmod=SHA256)
-            tag = hmac.update(nonce + ciphertext).verify(tag)
-        except ValueError:
-            print("The message was modified!")
-            sys.exit(1)
-
-        cipher = AES.new(aes_key, AES.MODE_CTR, nonce=nonce)
-        message = cipher.decrypt(ciphertext)
-        return message.decode()
+        return self.config  
 
 
 if __name__ == "__main__":
@@ -161,14 +162,48 @@ if __name__ == "__main__":
     
     args = rospy.myargv(argv=sys.argv)
     drone = Device(int(args[1]))
-
-    print("Device ID : ",drone.get_device_id())
-    puf_table = drone.PUF_table
+    # get the config
+    Config  = drone.get_config()
+    print(Config)
     
-    # get the first challenge in the puf table
-    challenge = list(puf_table.keys())[0]
-    response = puf_table[challenge]
-    print("CRP queried from the table : ",challenge, response)
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    # print("Device ID : ",drone.get_device_id())
+    # puf_table = drone.PUF_table
+    
+    # # get the first challenge in the puf table
+    # challenge = list(puf_table.keys())[0]
+    # response = puf_table[challenge]
+    # print("CRP queried from the table : ",challenge, response)
     # response = drone.PUF(challenge)
     # print("PUF(challenge) = ", response)
 
