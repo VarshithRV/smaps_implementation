@@ -11,6 +11,7 @@ from Crypto.Cipher import AES
 from Crypto.Hash import HMAC, SHA256
 from Crypto.Random import get_random_bytes
 import time
+import heapq
 from smaps_implementation.msg import Packet
 
 class Device:
@@ -154,7 +155,8 @@ class Device:
         self.random = get_random_bytes(16)
 
     def get_config(self):    
-        return self.config  
+        return self.config 
+
 
 
 if __name__ == "__main__":

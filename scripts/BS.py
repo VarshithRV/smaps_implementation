@@ -5,9 +5,12 @@ from Crypto.Cipher import AES
 from Crypto.Hash import HMAC, SHA256
 from Crypto.Random import get_random_bytes
 import time
+import heapq
 from smaps_implementation.msg import Packet
 
 class Device:
+    
+    
     def __init__(self, device_id):
         
         # initialize the project path
@@ -60,7 +63,7 @@ class Device:
         self.create_links()
         # rospy.spin()
     
-
+    ############################
     def create_links(self):
         for link in self.links:
             if link>self.device_id:
@@ -73,7 +76,7 @@ class Device:
                 self.publisher_list.append(pub)
                 self.pub_links_dict[link] = pub
                 rospy.Subscriber("s"+str(self.device_id)+"x"+str(link)+"s", Packet, self.msgCb)
-    
+    ############################
     def send_message(self,link,message:Packet):
         if link not in self.links:
             print("Link not found")
@@ -81,8 +84,45 @@ class Device:
         else:
             self.pub_links_dict[link].publish(message)
             return True
+    ############################
+    def encrypt(self,message,key):
 
+        data = message.encode()
+        aes_key = key
+        hmac_key = key
 
+        cipher = AES.new(aes_key, AES.MODE_CTR)
+        ciphertext = cipher.encrypt(data)
+
+        hmac = HMAC.new(hmac_key, digestmod=SHA256)
+        tag = hmac.update(cipher.nonce + ciphertext).digest()
+
+        return tag,cipher.nonce,ciphertext
+    ############################
+    def decrypt(self,tag,nonce,ciphertext,key):
+
+        aes_key = key
+        hmac_key = key
+
+        try:
+            hmac = HMAC.new(hmac_key, digestmod=SHA256)
+            tag = hmac.update(nonce + ciphertext).verify(tag)
+        except ValueError:
+            print("The message was modified!")
+            sys.exit(1)
+
+        cipher = AES.new(aes_key, AES.MODE_CTR, nonce=nonce)
+        message = cipher.decrypt(ciphertext)
+        return message.decode()
+    ############################
+    def PUF(self,challenge):
+        if challenge in self.PUF_table:
+            return self.PUF_table[challenge]
+        else:
+            return None
+    ############################
+    
+    
     def msgCb(self,msg:Packet):
         if msg.source == self.device_id:
             pass
@@ -109,44 +149,64 @@ class Device:
         self.random = get_random_bytes(16)
 
     def get_config(self):    
-        return self.config
-    
-    def PUF(self,challenge):
-        if challenge in self.PUF_table:
-            return self.PUF_table[challenge]
-        else:
-            return None
-        
-    def encrypt(self,message,key):
+        return self.config 
 
-        data = message.encode()
-        aes_key = key
-        hmac_key = key
+def generate_mst(graph):
+    mst = {}
+    visited = set()
+    start_node = list(graph.keys())[0]
+    heap = [(0, start_node, None)]  # (weight, current_node, parent_node)
 
-        cipher = AES.new(aes_key, AES.MODE_CTR)
-        ciphertext = cipher.encrypt(data)
+    while heap:
+        weight, current_node, parent_node = heapq.heappop(heap)
 
-        hmac = HMAC.new(hmac_key, digestmod=SHA256)
-        tag = hmac.update(cipher.nonce + ciphertext).digest()
+        if current_node not in visited:
+            visited.add(current_node)
 
-        return tag,cipher.nonce,ciphertext
+            if parent_node is not None:
+                mst.setdefault(parent_node, []).append(current_node)
 
-    def decrypt(self,tag,nonce,ciphertext,key):
+            for neighbor in graph[current_node]:
+                if neighbor not in visited:
+                    heapq.heappush(heap, (0, neighbor, current_node))
 
-        aes_key = key
-        hmac_key = key
+    return mst
 
-        try:
-            hmac = HMAC.new(hmac_key, digestmod=SHA256)
-            tag = hmac.update(nonce + ciphertext).verify(tag)
-        except ValueError:
-            print("The message was modified!")
-            sys.exit(1)
+def find_all_paths(graph, start, end, path=[]):
+    path = path + [start]
+    if start == end:
+        return [path]
+    paths = []
+    for node in graph[start]:
+        if node not in path:
+            newpaths = find_all_paths(graph, node, end, path)
+            for p in newpaths:
+                paths.append(p)
+    return paths
 
-        cipher = AES.new(aes_key, AES.MODE_CTR, nonce=nonce)
-        message = cipher.decrypt(ciphertext)
-        return message.decode()
-    
+def find_leafs(mst):
+    leafs = []
+    for values in mst.values():
+        for value in values:
+            if value not in mst.keys():
+                leafs.append(value)
+    return leafs
+
+def add_leafs(mst,leafs):
+    for leaf in leafs:
+        mst[leaf] = []    
+    return mst
+
+def find_paths(graph,root):
+    mst = generate_mst(graph)
+    leafs = find_leafs(mst)
+    mst = add_leafs(mst,leafs)
+    paths = []
+    for leaf in leafs:
+        path = find_all_paths(mst, root, leaf)
+        paths.append(path)
+    return paths
+
 
 class BS(Device):
     
@@ -180,11 +240,11 @@ class BS(Device):
         # 7. tag, nonce, ciphertext encrypt(message,key) - encrypt the message
         # 8. string message decrypt(tag,nonce,ciphertext,key) - decrypt the message
         ##################################################
-        
+        # all drones list
         self.drones = list(self.config.keys())
         
         ##################################################
-        
+        # PUF directory creation
         self.PUF_directory = {}
         for i in self.drones: 
             PUF_table_temp = {}
@@ -199,7 +259,10 @@ class BS(Device):
             self.PUF_directory[i] = PUF_table_temp
         
         ##################################################
-            
+        # initializing all paths
+        self.paths = find_paths(self.config,self.device_id)
+        print(self.paths)
+        ##################################################
 
 
             
