@@ -264,7 +264,8 @@ class BS(Device):
         # initializing all paths
         self.paths = find_paths(self.config,self.device_id)
 
-        ##################################################
+        
+
 
 
             
