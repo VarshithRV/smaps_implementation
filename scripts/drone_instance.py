@@ -131,9 +131,64 @@ class Device:
     
     def msgCb(self,msg:Packet):
         if msg.source == self.device_id:
-            pass
+            return
         else:
-            print(self.device_id,": ", msg.data)
+            print("##############################################################")
+            # Message forwarding
+            print(self.device_id,":Received :", msg,"from ",msg.source)
+            if msg.type == "AUTH" and msg.destination == self.device_id and self.device_id is not msg.message_queue[-1]:
+                print(self.device_id,":AUTH message received, fowarding to next link")
+                msg.current += 1
+                msg_new = Packet()
+                msg_new.source = self.device_id
+                msg_new.type = "AUTH"
+                msg_new.current = msg.current
+                msg_new.destination = msg.message_queue[msg_new.current+1]
+                msg_new.data = msg.data
+                msg_new.message_queue = msg.message_queue
+                print(self.device_id,":Sending message: ", msg_new)
+                self.send_message(msg_new.destination,msg_new)
+                # process challenge here and create response here
+            
+            # Message forwarding leaf node case
+            elif msg.type == "AUTH" and msg.destination == self.device_id and self.device_id == msg.message_queue[-1]:
+                print(self.device_id,":AUTH message received, leaf node")
+                print(self.device_id,": ",msg.source," said ", msg.data,"creating a response and sending it back")
+                # reverse the queue and return the message
+                # process challenge here and create a response here
+                # make a response packet, revert the queue, reset current
+                # send the message back to the BS
+                msg_new = Packet()
+                msg_new.source = self.device_id
+                msg_new.type = "RESPONSE"
+                msg_new.message_queue = msg.message_queue[::-1]
+                msg_new.current = 0
+                msg_new.destination = msg_new.message_queue[msg_new.current+1]
+                msg_new.data = " This for BS, I am "+str(self.device_id)
+                print(self.device_id,":Sending message : ", msg_new," to ",msg_new.destination)
+                self.send_message(msg_new.destination,msg_new)
+            
+            elif msg.type == "AUTH" and msg.destination is not self.device_id:
+                print(self.device_id,":AUTH message received, not for me")
+                return
+            
+            elif msg.type == "RESPONSE" and msg.destination == self.device_id and self.device_id is not msg.message_queue[-1]:
+                print(self.device_id,":RESPONSE message received")
+                print(self.device_id,": ",msg.source," said ", msg.data)
+                msg.current += 1
+                msg_new = Packet()
+                msg_new.source = self.device_id
+                msg_new.type = "RESPONSE"
+                msg_new.current = msg.current
+                msg_new.destination = msg.message_queue[msg_new.current+1]
+                msg_new.data = msg.data #modify here
+                msg_new.message_queue = msg.message_queue
+                print(self.device_id,":Sending message : ", msg_new," to ",msg_new.destination)
+                self.send_message(msg_new.destination,msg_new)
+                # Add your response to the msg.data and send it
+            
+                
+
     
     def get_device_id(self):
         # print(self.device_id)
@@ -156,6 +211,8 @@ class Device:
 
     def get_config(self):    
         return self.config 
+    
+    
 
 
 
@@ -164,9 +221,7 @@ if __name__ == "__main__":
     
     args = rospy.myargv(argv=sys.argv)
     drone = Device(int(args[1]))
-    # get the config
-    Config  = drone.get_config()
-    print(Config)
+    rospy.spin()
     
     
     

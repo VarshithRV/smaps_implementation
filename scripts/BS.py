@@ -127,7 +127,7 @@ class Device:
         if msg.source == self.device_id:
             pass
         else:
-            print(self.device_id,": ", msg.data)
+            print(self.device_id,":Received :", msg,"from ",msg.source)
     
     def get_device_id(self):
         # print(self.device_id)
@@ -263,7 +263,14 @@ class BS(Device):
         ##################################################
         # initializing all paths
         self.paths = find_paths(self.config,self.device_id)
-
+        print(self.paths)
+        ##################################################
+        # starting links for the paths
+        self.starting_links = []
+        for path in self.paths:
+            self.starting_links.append(path[0][1])
+        print(self.starting_links)
+        ##################################################
         
 
 
@@ -274,4 +281,16 @@ if __name__ == "__main__":
     args = rospy.myargv(argv=sys.argv)
     bs = BS(args)
     print("Base Station is running...")
+    print("Sending message to 1st drone in path 2 (path0, path1  and path2)")
+    msg = Packet()
+    msg.type = "AUTH"
+    msg.source = 0
+    msg.destination = bs.starting_links[2]
+    msg.data = "Hello Drone "+str(bs.starting_links[2])+" from Base Station 0"
+    msg.message_queue = bs.paths[2][0]
+    print(bs.device_id,":Sending message ",msg," to ",bs.starting_links[2])
+    time.sleep(2)
+    print(bs.device_id,"Sending Now...")
+    bs.send_message(bs.starting_links[2],msg)
+    print(bs.device_id,"Message sent")
     rospy.spin()
