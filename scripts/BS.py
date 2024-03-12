@@ -86,8 +86,7 @@ class Device:
             return True
     ############################
     def encrypt(self,message,key):
-
-        data = message.encode()
+        data = message
         aes_key = key
         hmac_key = key
 
@@ -214,6 +213,48 @@ class BS(Device):
     def get_PUF_CRP(self,drone_id,n): # get the nth CRP of the drone with id i
         return list(self.PUF_directory[drone_id].keys())[n], list(self.PUF_directory[drone_id].values())[n]
 
+    def create_node_auth_messages(self): # generates auth messages for drones, returns dict with node_id as key and auth_message as value
+        # create the AUTH messsage for all the nodes
+        # message = Challenge[0]+timestamp+Encrypt(random_number+timestamp+R[0],R[0])
+        auth_messages = {}
+        for drone in self.drones:
+            # get the first challenge of each drone
+            challenge = list(self.PUF_directory[drone].keys())[0]
+            response = self.PUF_directory[drone][challenge]
+            timestamp = time.time()
+            self.update_random()
+            random_number = self.random
+            message = {}
+            # message['challenge'] = challenge.decode()
+            # print(challenge)
+            # print(str(challenge),type(str(challenge)),str(challenge).encode(),type(str(challenge).encode()))
+            message['challenge'] = challenge
+            message['timestamp'] = timestamp
+            message['random_number_enc'] = list(self.encrypt(random_number,response))
+            message['timestamp_enc'] = list(self.encrypt(str(timestamp).encode(),response))
+            message['response_enc'] = list(self.encrypt(response,response))
+            # print("Message for drone ",drone,": ",message)
+            auth_messages[drone]=message
+        return auth_messages
+    
+    def create_auth_messages(self): # returns a list of dicts (the dicts contain aggregate message for that path)
+
+        node_auth_messages = bs.create_node_auth_messages() #auth_message[i] contains the auth message for ith node
+        authentication_message = [] # a list that contains aggregate path message as items, authentication_message[1] contains aggregate message for path 1
+        i =0
+        for path in bs.paths:
+            path = path[0]
+            path_message = {}
+            for node in path:
+                if node == 0:
+                    pass
+                else :
+                    path_message[node] = node_auth_messages[node]
+            authentication_message.append(path_message)
+            i+=1
+        return authentication_message
+
+
     def __init__(self, args):
 
         super().__init__(0)
@@ -277,9 +318,17 @@ if __name__ == "__main__":
     args = rospy.myargv(argv=sys.argv)
     bs = BS(args)
     print(bs.device_id,": Base Station is running...")
-
+    # prepare the path messages
+    auth_messages = bs.create_auth_messages()
+    # print the paths
+    print(bs.device_id,": Paths : ",bs.paths)
+    # print the starting links
+    print(bs.device_id,": Starting links : ",bs.starting_links)
+    
     print(bs.device_id,": Sending AUTH message to all the neighbouring links of Base Station 0")
-    # print("Sending message to 1st drone in path 2 (path0, path1  and path2)")
+
+    for i in range(len(bs.starting_links)):
+        print(bs.device_id,": Aggregate AUTH message of path i : ",auth_messages[i])
 
     i =0
     for link in bs.starting_links:
@@ -290,10 +339,9 @@ if __name__ == "__main__":
         msg.data = "Hello Drone "+str(link)+" from Base Station 0" # this is where you send the message
         msg.message_queue = bs.paths[i][0]
         print(bs.device_id,": Sending message ",msg," to ",link)
-        print(bs.device_id,": Sending Now...")
         bs.send_message(link,msg)
-        time.sleep(2)
         print(bs.device_id,": Message sent")
+        time.sleep(2)
         i+=1
-        print(link)
+    
     rospy.spin()
