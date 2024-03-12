@@ -45,11 +45,11 @@ class Device:
 
         # initialize the links
         ###################
-        self.links = self.config[self.device_id]
+        self.links = self.config[self.device_id] # confiugration dictionary
 
         # generate and store and random number for the device
         ###################
-        self.random = get_random_bytes(16)
+        self.random = get_random_bytes(16) # 16 Byte random number
 
         # publisher list for links 
         ###################
@@ -57,11 +57,14 @@ class Device:
 
         # create a dictionary for the links with links as keys
         ###################
-        self.pub_links_dict = {}
+        self.pub_links_dict = {} # dictionary containing publisher for each  link 
 
         # create the links
-        self.create_links()
+        self.create_links() # geneartes communication links
         # rospy.spin()
+
+        # timestamp
+        self.timestamp = time.time() # timestamp
     
     ############################
     def create_links(self):
@@ -77,7 +80,7 @@ class Device:
                 self.pub_links_dict[link] = pub
                 rospy.Subscriber("s"+str(self.device_id)+"x"+str(link)+"s", Packet, self.msgCb)
     ############################
-    def send_message(self,link,message:Packet):
+    def send_message(self,link,message:Packet): # sends message of type Packet to given node
         if link not in self.links:
             print("Link not found")
             return False
@@ -98,7 +101,8 @@ class Device:
 
         return tag,cipher.nonce,ciphertext
     ############################
-    def decrypt(self,tag,nonce,ciphertext,key):
+    def decrypt(self,tag,nonce,ciphertext,key): # dencrypts, returns tag, nonce and ciphertext
+
 
         aes_key = key
         hmac_key = key
@@ -114,7 +118,7 @@ class Device:
         message = cipher.decrypt(ciphertext)
         return message.decode()
     ############################
-    def PUF(self,challenge):
+    def PUF(self,challenge): # PUF function, gives response for challenges 
         if challenge in self.PUF_table:
             return self.PUF_table[challenge]
         else:
@@ -122,7 +126,7 @@ class Device:
     ############################
     
     
-    def msgCb(self,msg:Packet):
+    def msgCb(self,msg:Packet): # message callback, invoked everytime a callback is received
         if msg.source == self.device_id:
             pass
         else:
@@ -150,7 +154,7 @@ class Device:
     def get_config(self):    
         return self.config 
 
-def generate_mst(graph):
+def generate_mst(graph): # given config dict, returns a min spanning tree
     mst = {}
     visited = set()
     start_node = list(graph.keys())[0]
@@ -171,7 +175,7 @@ def generate_mst(graph):
 
     return mst
 
-def find_all_paths(graph, start, end, path=[]):
+def find_all_paths(graph, start, end, path=[]): # returns path of start and end
     path = path + [start]
     if start == end:
         return [path]
@@ -183,7 +187,7 @@ def find_all_paths(graph, start, end, path=[]):
                 paths.append(p)
     return paths
 
-def find_leafs(mst):
+def find_leafs(mst): # returs a list of leaf nodes
     leafs = []
     for values in mst.values():
         for value in values:
@@ -196,7 +200,7 @@ def add_leafs(mst,leafs):
         mst[leaf] = []    
     return mst
 
-def find_paths(graph,root):
+def find_paths(graph,root): # returns all paths for all leaf nodes
     mst = generate_mst(graph)
     leafs = find_leafs(mst)
     mst = add_leafs(mst,leafs)
@@ -205,6 +209,7 @@ def find_paths(graph,root):
         path = find_all_paths(mst, root, leaf)
         paths.append(path)
     return paths
+
 
 ##################################################
 # Base Station class
@@ -254,7 +259,6 @@ class BS(Device):
             i+=1
         return authentication_message
 
-
     def __init__(self, args):
 
         super().__init__(0)
@@ -285,6 +289,7 @@ class BS(Device):
         ##################################################
         # all drones list
         self.drones = list(self.config.keys())
+        self.drones.remove(0)
         
         ##################################################
         # PUF directory creation
@@ -303,14 +308,12 @@ class BS(Device):
         
         ##################################################
         # initializing all paths
-        self.paths = find_paths(self.config,self.device_id)
-        print(self.paths)
+        self.paths = find_paths(self.config,self.device_id) #contains list of paths for each leaf node
         ##################################################
         # starting links for the paths
-        self.starting_links = []
+        self.starting_links = [] #contains a list of starting links for each path
         for path in self.paths:
             self.starting_links.append(path[0][1])
-        print(self.starting_links)
         ##################################################
             
 if __name__ == "__main__":
