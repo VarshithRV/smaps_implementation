@@ -271,26 +271,29 @@ class BS(Device):
             self.starting_links.append(path[0][1])
         print(self.starting_links)
         ##################################################
-        
-
-
-
             
 if __name__ == "__main__":
     
     args = rospy.myargv(argv=sys.argv)
     bs = BS(args)
-    print("Base Station is running...")
-    print("Sending message to 1st drone in path 2 (path0, path1  and path2)")
-    msg = Packet()
-    msg.type = "AUTH"
-    msg.source = 0
-    msg.destination = bs.starting_links[2]
-    msg.data = "Hello Drone "+str(bs.starting_links[2])+" from Base Station 0"
-    msg.message_queue = bs.paths[2][0]
-    print(bs.device_id,":Sending message ",msg," to ",bs.starting_links[2])
-    time.sleep(2)
-    print(bs.device_id,"Sending Now...")
-    bs.send_message(bs.starting_links[2],msg)
-    print(bs.device_id,"Message sent")
+    print(bs.device_id,": Base Station is running...")
+
+    print(bs.device_id,": Sending AUTH message to all the neighbouring links of Base Station 0")
+    # print("Sending message to 1st drone in path 2 (path0, path1  and path2)")
+
+    i =0
+    for link in bs.starting_links:
+        msg = Packet()
+        msg.type = "AUTH"
+        msg.source = 0
+        msg.destination = link
+        msg.data = "Hello Drone "+str(link)+" from Base Station 0" # this is where you send the message
+        msg.message_queue = bs.paths[i][0]
+        print(bs.device_id,": Sending message ",msg," to ",link)
+        print(bs.device_id,": Sending Now...")
+        bs.send_message(link,msg)
+        time.sleep(2)
+        print(bs.device_id,": Message sent")
+        i+=1
+        print(link)
     rospy.spin()

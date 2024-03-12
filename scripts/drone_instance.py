@@ -167,6 +167,7 @@ class Device:
                 msg_new.data = " This for BS, I am "+str(self.device_id)
                 print(self.device_id,":Sending message : ", msg_new," to ",msg_new.destination)
                 self.send_message(msg_new.destination,msg_new)
+                # process msg.data here, authenticate and create response here
             
             elif msg.type == "AUTH" and msg.destination is not self.device_id:
                 print(self.device_id,":AUTH message received, not for me")
@@ -185,9 +186,7 @@ class Device:
                 msg_new.message_queue = msg.message_queue
                 print(self.device_id,":Sending message : ", msg_new," to ",msg_new.destination)
                 self.send_message(msg_new.destination,msg_new)
-                # Add your response to the msg.data and send it
-            
-                
+                # process msg.data here, authenticate and create response here    
 
     
     def get_device_id(self):
