@@ -68,7 +68,9 @@ class Device:
         # create the links
         self.create_links()
         # rospy.spin()
-    
+
+        # timestamp
+        self.timestamp = time.time()
     ############################
     def create_links(self):
         for link in self.links:
@@ -222,37 +224,6 @@ if __name__ == "__main__":
     args = rospy.myargv(argv=sys.argv)
     drone = Device(int(args[1]))
     rospy.spin()
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
     
     # print("Device ID : ",drone.get_device_id())
     # puf_table = drone.PUF_table

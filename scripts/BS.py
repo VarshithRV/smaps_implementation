@@ -62,6 +62,9 @@ class Device:
         # create the links
         self.create_links()
         # rospy.spin()
+
+        # timestamp
+        self.timestamp = time.time()
     
     ############################
     def create_links(self):
@@ -271,6 +274,10 @@ class BS(Device):
             self.starting_links.append(path[0][1])
         print(self.starting_links)
         ##################################################
+        # create the AUTH messsage for all the nodes
+        # message = Challenge[0]+timestamp+Encrypt(random_number+timestamp+R[0],R[0])
+        for drone in self.drones:
+            print(drone)
         
 
 
@@ -282,15 +289,19 @@ if __name__ == "__main__":
     bs = BS(args)
     print("Base Station is running...")
     print("Sending message to 1st drone in path 2 (path0, path1  and path2)")
+    
+    #create the Authentication message
     msg = Packet()
     msg.type = "AUTH"
     msg.source = 0
+    #Destination is the starting node of path 2
     msg.destination = bs.starting_links[2]
     msg.data = "Hello Drone "+str(bs.starting_links[2])+" from Base Station 0"
     msg.message_queue = bs.paths[2][0]
     print(bs.device_id,":Sending message ",msg," to ",bs.starting_links[2])
     time.sleep(2)
     print(bs.device_id,"Sending Now...")
+    #Send message to the link
     bs.send_message(bs.starting_links[2],msg)
     print(bs.device_id,"Message sent")
     rospy.spin()
