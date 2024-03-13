@@ -163,7 +163,7 @@ class Device:
                 print(self.device_id,":Sending message: ", msg_new)
                 self.send_message(msg_new.destination,msg_new)
                 # process challenge here and create response here
-                processed_data = self.process_msg_data(msg)
+                # processed_data = self.process_msg_data(msg)
 
 
                 

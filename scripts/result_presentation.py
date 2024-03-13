@@ -3,7 +3,7 @@ puf_duration = 2.1457672119140625e-06
 encryption_duration = 0.0019729137420654297 
 decryption_duration = 0.00276947021484375 
 random_duration = 6.198883056640625e-06
-
+Authentication_duration_single_drone = 2*Random_number_duration + puf_duration + encryption_duration + decryption_duration + random_duration
  
 spanning_tree5 = 5.0067901611328125e-06 
 spanning_tree10 = 3.5762786865234375e-06 
@@ -34,7 +34,7 @@ encryption_duration = 0.0019729137420654297
 data1 = {
     
     'Decrypt': decryption_duration,
-    
+    'Authentication': Authentication_duration_single_drone,   
     'Encrypt': encryption_duration
 }
 

@@ -368,9 +368,15 @@ if __name__ == "__main__":
     
     print(bs.device_id,": Sending AUTH message to all the neighbouring links of Base Station 0")
 
-    for i in range(len(bs.starting_links)):
-        print(bs.device_id,": Aggregate AUTH message of path ",i," : ",auth_messages[i])
-        auth_messages[i]  = json.dumps(auth_messages[i])
+    # print("Authentication Messages : ",auth_messages)
+    # auth = bs.create_node_auth_messages()
+    # auth = bs.msg_coding(auth[1])
+    # string = json.dumps(auth)
+    # print(auth,type(auth),len(string))
+
+    # for i in range(len(bs.starting_links)):
+    #     print(bs.device_id,": Aggregate AUTH message of path ",i," : ",auth_messages[i])
+    #     auth_messages[i]  = json.dumps(auth_messages[i])
 
     i =0
     for link in bs.starting_links:
