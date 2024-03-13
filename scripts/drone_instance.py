@@ -13,6 +13,7 @@ from Crypto.Random import get_random_bytes
 import time
 import heapq
 from smaps_implementation.msg import Packet
+import json
 
 class Device:
     
@@ -130,7 +131,19 @@ class Device:
             return None
     ############################
     
-    
+    def process_msg_data (self, msg):
+        data_dict = json.loads(msg.data)
+        challenge = data_dict["challenge"]
+        timestamp = data_dict["timestamp"]
+        random_number_enc = data_dict["random_number_enc"]
+        tag = random_number_enc[0]
+        nonce = random_number_enc[0]
+        ciphertext = random_number_enc[0]
+        timestamp_enc = data_dict["timestamp_enc"]
+        response_enc = data_dict["response_enc"]
+
+        return 
+
     def msgCb(self,msg:Packet):
         if msg.source == self.device_id:
             return
@@ -140,17 +153,21 @@ class Device:
             print(self.device_id,":Received :", msg,"from ",msg.source)
             if msg.type == "AUTH" and msg.destination == self.device_id and self.device_id is not msg.message_queue[-1]:
                 print(self.device_id,":AUTH message received, fowarding to next link")
-                msg.current += 1
                 msg_new = Packet()
                 msg_new.source = self.device_id
                 msg_new.type = "AUTH"
-                msg_new.current = msg.current
+                msg_new.current = msg.current + 1
                 msg_new.destination = msg.message_queue[msg_new.current+1]
                 msg_new.data = msg.data
                 msg_new.message_queue = msg.message_queue
                 print(self.device_id,":Sending message: ", msg_new)
                 self.send_message(msg_new.destination,msg_new)
                 # process challenge here and create response here
+                processed_data = self.process_msg_data(msg)
+
+
+                
+
             
             # Message forwarding leaf node case
             elif msg.type == "AUTH" and msg.destination == self.device_id and self.device_id == msg.message_queue[-1]:

@@ -7,6 +7,8 @@ from Crypto.Random import get_random_bytes
 import time
 import heapq
 from smaps_implementation.msg import Packet
+import base64
+import json
 
 class Device:
     
@@ -234,6 +236,7 @@ class BS(Device):
             # print(challenge)
             # print(str(challenge),type(str(challenge)),str(challenge).encode(),type(str(challenge).encode()))
             message['challenge'] = challenge
+
             message['timestamp'] = timestamp
             message['random_number_enc'] = list(self.encrypt(random_number,response))
             message['timestamp_enc'] = list(self.encrypt(str(timestamp).encode(),response))
@@ -242,9 +245,44 @@ class BS(Device):
             auth_messages[drone]=message
         return auth_messages
     
+    def msg_coding(self,msg): # flattens the message
+        challenge = msg['challenge']
+        timestamp = msg['timestamp']
+        random_number_enc = msg['random_number_enc']
+        timestamp_enc = msg['timestamp_enc']
+        response_enc = msg['response_enc']
+        # print(msg['challenge'],msg['timestamp'],msg['random_number_enc'],msg['timestamp_enc'],msg['response_enc'])
+        msg_new = {}
+        msg_new['challenge'] =  base64.b64encode(challenge).decode('utf-8')
+        
+        msg_new['timestamp'] = timestamp
+
+        tag = base64.b64encode(random_number_enc[0]).decode('utf-8')
+        nonce = base64.b64encode(random_number_enc[1]).decode('utf-8')
+        ciphertext = base64.b64encode(random_number_enc[2]).decode('utf-8')
+        msg_new['random_number_enc'] = [tag,nonce,ciphertext]
+        
+        tag = base64.b64encode(timestamp_enc[0]).decode('utf-8')
+        nonce = base64.b64encode(timestamp_enc[1]).decode('utf-8')
+        ciphertext = base64.b64encode(timestamp_enc[2]).decode('utf-8')
+        msg_new['timestamp_enc'] = [tag,nonce,ciphertext]
+        
+        tag = base64.b64encode(response_enc[0]).decode('utf-8')
+        nonce = base64.b64encode(response_enc[1]).decode('utf-8')
+        ciphertext = base64.b64encode(response_enc[2]).decode('utf-8')
+        msg_new['response_enc'] = [tag,nonce,ciphertext]
+        return msg_new
+    
     def create_auth_messages(self): # returns a list of dicts (the dicts contain aggregate message for that path)
 
         node_auth_messages = bs.create_node_auth_messages() #auth_message[i] contains the auth message for ith node
+        
+        #  preprocessing the messages
+        node_auth_messages_new = {}
+        for drone in self.drones:
+            node_auth_messages_new[drone] = self.msg_coding(node_auth_messages[drone])
+        
+        
         authentication_message = [] # a list that contains aggregate path message as items, authentication_message[1] contains aggregate message for path 1
         i =0
         for path in bs.paths:
@@ -254,7 +292,7 @@ class BS(Device):
                 if node == 0:
                     pass
                 else :
-                    path_message[node] = node_auth_messages[node]
+                    path_message[node] = node_auth_messages_new[node]
             authentication_message.append(path_message)
             i+=1
         return authentication_message
@@ -331,7 +369,8 @@ if __name__ == "__main__":
     print(bs.device_id,": Sending AUTH message to all the neighbouring links of Base Station 0")
 
     for i in range(len(bs.starting_links)):
-        print(bs.device_id,": Aggregate AUTH message of path i : ",auth_messages[i])
+        print(bs.device_id,": Aggregate AUTH message of path ",i," : ",auth_messages[i])
+        auth_messages[i]  = json.dumps(auth_messages[i])
 
     i =0
     for link in bs.starting_links:
@@ -340,6 +379,7 @@ if __name__ == "__main__":
         msg.source = 0
         msg.destination = link
         msg.data = "Hello Drone "+str(link)+" from Base Station 0" # this is where you send the message
+        # msg.data = auth_messages[i]
         msg.message_queue = bs.paths[i][0]
         print(bs.device_id,": Sending message ",msg," to ",link)
         bs.send_message(link,msg)
