@@ -1,9 +1,3 @@
-# this class is a single drone instance that has the following functions:
-# define the device id
-# define its neighbours
-# ability to communicate with the neighbours
-
-
 import os, sys, yaml
 import rospy
 from std_msgs.msg import String
