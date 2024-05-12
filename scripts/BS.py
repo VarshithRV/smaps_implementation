@@ -323,7 +323,9 @@ class BS(Device):
                 else:
                     print("Drone ",key," is not authenticated")
 
-
+        # remove duplicates from legitimate
+        legitimate = list(set(legitimate))
+        
         # convert all the elements in drone to str
         drones = list(map(str,self.drones))
         illegitimate = list(set(drones) - set(legitimate))
