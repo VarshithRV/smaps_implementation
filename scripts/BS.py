@@ -226,7 +226,7 @@ def find_paths(graph,root): # returns all paths for all leaf nodes
 # Base Station class
 class BS(Device):
     
-    def __init__(self, args):
+    def __init__(self):
         super().__init__(0)
         
         # all drones list
@@ -333,11 +333,8 @@ class BS(Device):
         print("Illegitimate drones : ",illegitimate)
         
         return legitimate, illegitimate
-
-if __name__ == "__main__":
     
-    args = rospy.myargv(argv=sys.argv)
-    bs = BS(args)
+def SMAPS_protocol(bs:BS):
     print(bs.device_id,": Base Station is running...")
     print(bs.device_id,": Paths : ",bs.paths)
     print(bs.device_id,": Starting links : ",bs.starting_links)
@@ -374,3 +371,11 @@ if __name__ == "__main__":
     legitimate, illegitimate = bs.authenticate_drones()
 
     print("SMAPS protocol finished...")
+    return legitimate, illegitimate
+
+if __name__ == "__main__":
+    bs = BS()
+    args = rospy.myargv(argv=sys.argv)
+    legitimate, illegitimate = SMAPS_protocol(bs)
+    print("Legitimate drones : ",legitimate)
+    print("Illegitimate drones : ",illegitimate)
