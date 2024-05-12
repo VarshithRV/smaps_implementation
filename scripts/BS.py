@@ -1,6 +1,5 @@
 import os, sys, yaml
 import rospy
-from std_msgs.msg import String
 from Crypto.Cipher import AES
 from Crypto.Hash import HMAC, SHA256
 from Crypto.Random import get_random_bytes
@@ -65,6 +64,10 @@ class Device:
 
         # timestamp
         self.timestamp = time.time() # timestamp
+
+        # auth responses list, an element contains the aggregate response of that path
+        self.auth_responses = []
+
     
     
     def create_links(self):
@@ -129,7 +132,12 @@ class Device:
         if msg.source == self.device_id:
             pass
         else:
-            print(self.device_id,":Received :", msg,"from ",msg.source)
+            # print(self.device_id,":Received :", msg,"from ",msg.source)
+            response = json.loads(msg.data)
+            print(self.device_id,": Aggregate response received : ",response)
+            self.auth_responses.append(response)
+
+
     
     def get_device_id(self):
         # print(self.device_id)
@@ -262,7 +270,7 @@ class BS(Device):
             response = self.PUF_directory[drone][challenge] 
             message = {}
             message['challenge'] = base64.b64encode(challenge).decode('utf-8')# convert challenge bytes to string
-            tag,nonce,ciphertext = self.encrypt(response,response)
+            tag,nonce,ciphertext = self.encrypt(base64.b64encode(response).decode('utf-8').encode(),response)
             tag =  base64.b64encode(tag).decode('utf-8')
             nonce = base64.b64encode(nonce).decode('utf-8')
             ciphertext = base64.b64encode(ciphertext).decode('utf-8')
@@ -286,7 +294,46 @@ class BS(Device):
             i+=1
         return authentication_message
 
+    # decrypt all the responses received from the drones
+    def decrypt_responses(self):
+        for i in range(len(self.auth_messages)):
+            for key in self.auth_responses[i].keys():
+                response = self.auth_responses[i][key]
+                tag = base64.b64decode(response[0])
+                nonce = base64.b64decode(response[1])
+                cipher_text = base64.b64decode(response[2])
+                response_extracted = self.decrypt(tag,nonce,cipher_text,
+                                                  self.PUF_directory[int(key)][base64.b64decode(self.auth_messages[i][int(key)]['challenge'])]
+                                                  )
+                self.auth_responses[i][key] = base64.b64decode(response_extracted)
             
+    # Authenticate the drones in the topology
+    def authenticate_drones(self):
+        print("Response received from all the drones : ",self.auth_responses)
+
+        legitimate = []
+
+        for i in range(len(self.auth_messages)):
+            for key in self.auth_responses[i].keys():
+                if self.auth_responses[i][key] == self.PUF_directory[int(key)][base64.b64decode(self.auth_messages[i][int(key)]['challenge'])]:
+                    print("Drone ",key," is authenticated")
+                    print("Response received : ",self.auth_responses[i][key])
+                    print("Expected response : ",self.PUF_directory[int(key)][base64.b64decode(self.auth_messages[i][int(key)]['challenge'])])
+                    legitimate.append(key)
+                else:
+                    print("Drone ",key," is not authenticated")
+
+
+        # convert all the elements in drone to str
+        drones = list(map(str,self.drones))
+        illegitimate = list(set(drones) - set(legitimate))
+        
+        print("DRONES registered : ",drones)
+        print("Legitimate drones : ",legitimate)
+        print("Illegitimate drones : ",illegitimate)
+        
+        return legitimate, illegitimate
+
 if __name__ == "__main__":
     
     args = rospy.myargv(argv=sys.argv)
@@ -306,14 +353,24 @@ if __name__ == "__main__":
         msg.destination = link
 
         # send the auth message here
-        # msg.data = "Hello Drone "+str(link)+" from Base Station 0"
         msg.data = json.dumps(bs.auth_messages[i])
 
         msg.message_queue = bs.paths[i]
+        print("########################################################")
         print(bs.device_id,": Sending message ",msg," to ",link)
         bs.send_message(link,msg)
         print(bs.device_id,": Message sent")
-        time.sleep(2)
         i+=1
+
+        time.sleep(0.05)
     
-    rospy.spin()
+    print("########################################################")
+    print("All responses received : ")
+    
+    # get the decrypted responses from the messages
+    bs.decrypt_responses()
+    
+    # Authenticating all the nodes in the topology
+    legitimate, illegitimate = bs.authenticate_drones()
+
+    print("SMAPS protocol finished...")

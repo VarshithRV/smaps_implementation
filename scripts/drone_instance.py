@@ -8,6 +8,7 @@ import time
 import heapq
 from smaps_implementation.msg import Packet
 import json
+import base64
 
 class Device:
     
@@ -66,7 +67,16 @@ class Device:
 
         # timestamp
         self.timestamp = time.time()
-    ############################
+
+        # Response message
+        self.auth_response = None
+
+        # extracted response 
+        self.extracted_response = None
+ 
+
+    
+    # create links for the neighbours
     def create_links(self):
         for link in self.links:
             if link>self.device_id:
@@ -79,7 +89,8 @@ class Device:
                 self.publisher_list.append(pub)
                 self.pub_links_dict[link] = pub
                 rospy.Subscriber("s"+str(self.device_id)+"x"+str(link)+"s", Packet, self.msgCb)
-    ############################
+    
+    # send message to neighbouring link
     def send_message(self,link,message:Packet):
         if link not in self.links:
             print("Link not found")
@@ -87,7 +98,8 @@ class Device:
         else:
             self.pub_links_dict[link].publish(message)
             return True
-    ############################
+    
+    # encrypt the string
     def encrypt(self,message,key):
 
         data = message.encode()
@@ -101,7 +113,8 @@ class Device:
         tag = hmac.update(cipher.nonce + ciphertext).digest()
 
         return tag,cipher.nonce,ciphertext
-    ############################
+    
+    # decrypt the string
     def decrypt(self,tag,nonce,ciphertext,key):
 
         aes_key = key
@@ -117,13 +130,43 @@ class Device:
         cipher = AES.new(aes_key, AES.MODE_CTR, nonce=nonce)
         message = cipher.decrypt(ciphertext)
         return message.decode()
-    ############################
+    
+    # PUF function of device
     def PUF(self,challenge):
         if challenge in self.PUF_table:
             return self.PUF_table[challenge]
         else:
             return None
-    ############################
+        
+    # Authenticate base_function
+    def bs_authentication(self,message):
+        # message is the aggregate message of all node auth messages in the path
+        message = json.loads(message)
+        node_auth_message = message[str(self.device_id)]
+        challenge = base64.b64decode(node_auth_message["challenge"])
+        response_enc = node_auth_message["response_enc"]
+        tag = base64.b64decode(response_enc[0])
+        nonce = base64.b64decode(response_enc[1])
+        cipher_text = base64.b64decode(response_enc[2])
+        response = self.PUF(challenge)
+        response_extracted = base64.b64decode(self.decrypt(tag,nonce,cipher_text,response))
+        if response_extracted == response:
+            print(self.device_id,":PUF response verified")
+            self.extracted_response = response_extracted
+            return True
+        else:
+            print(self.device_id,":PUF response not verified, source not base station")
+            return False
+
+    # Response generation
+    def response_gen(self):
+        response = self.extracted_response
+        tag,nonce,ciphertext = self.encrypt(base64.b64encode(response).decode(),response)
+        response_enc = [base64.b64encode(tag).decode(),base64.b64encode(nonce).decode(),base64.b64encode(ciphertext).decode()]
+        message = {}
+        message[str(self.device_id)] = response_enc
+        self.auth_response = message
+
 
     # Message Handling for each node (heart of the protocol)
     def msgCb(self,msg:Packet):
@@ -136,17 +179,29 @@ class Device:
             print(self.device_id,":Received :", msg,"from ",msg.source)
             if msg.type == "AUTH" and msg.destination == self.device_id and self.device_id is not msg.message_queue[-1]:
                 print(self.device_id,":AUTH message received, fowarding to next link")
+                
+                # Base station authentication
+                if self.bs_authentication(msg.data) == True:
+                    print("Base station authentication successful")
+                else : 
+                    rospy.logerr("BS Authentication failed, exiting")
+                    return 
+
+                # generate self.auth_response for the authentication message
+                self.response_gen()
+
+                # prepare message to send
                 msg_new = Packet()
                 msg_new.source = self.device_id
                 msg_new.type = "AUTH"
                 msg_new.current = msg.current + 1
                 msg_new.destination = msg.message_queue[msg_new.current+1]
-
                 # Response creation and auth forwarding      
                 msg_new.data = msg.data
-                
                 msg_new.message_queue = msg.message_queue
                 print(self.device_id,":Sending message: ", msg_new)
+
+                # send the message
                 self.send_message(msg_new.destination,msg_new)
 
             
@@ -154,6 +209,17 @@ class Device:
             elif msg.type == "AUTH" and msg.destination == self.device_id and self.device_id == msg.message_queue[-1]:
                 print(self.device_id,":AUTH message received, leaf node")
                 print(self.device_id,": ",msg.source," said ", msg.data,"creating a response and sending it back")
+
+                # Base station authentication
+                if self.bs_authentication(msg.data) == True:
+                    print("Base station authentication successful")
+                else : 
+                    rospy.logerr("BS Authentication failed, exiting")
+                    return 
+
+                # generate self.auth_response for the authentication message
+                self.response_gen()
+                
                 msg_new = Packet()
                 msg_new.source = self.device_id
                 msg_new.type = "RESPONSE"
@@ -161,8 +227,8 @@ class Device:
                 msg_new.current = 0
                 msg_new.destination = msg_new.message_queue[msg_new.current+1]
 
-                # Create response here
-                msg_new.data = " This for BS, I am "+str(self.device_id)
+                # Put response here
+                msg_new.data = json.dumps(self.auth_response)
                 
                 print(self.device_id,":Sending message : ", msg_new," to ",msg_new.destination)
                 self.send_message(msg_new.destination,msg_new)
@@ -180,7 +246,9 @@ class Device:
                 msg_new.destination = msg.message_queue[msg_new.current+1]
                 
                 # Response appending and forwarding
-                msg_new.data = msg.data
+                child_response = json.loads(msg.data)
+                child_response[str(self.device_id)] = self.auth_response[str(self.device_id)]
+                msg_new.data = json.dumps(child_response)
                 
                 msg_new.message_queue = msg.message_queue
                 print(self.device_id,":Sending message : ", msg_new," to ",msg_new.destination)
@@ -191,6 +259,10 @@ class Device:
                 print(self.device_id,":AUTH message received, not for me")
                 return
             
+            # RESPONSE message handling leaf node case
+            elif msg.type == "RESPONSE" and msg.destination == self.device_id and self.device_id == msg.message_queue[-1]:
+                print(self.device_id,":RESPONSE message received, leaf node, not required")
+
             # Unwanted RESPONSE message case
             elif msg.type == "RESPONSE" and msg.destination is not self.device_id:
                 print(self.device_id,":RESPONSE message received, not for me")
@@ -228,39 +300,6 @@ if __name__ == "__main__":
     
     args = rospy.myargv(argv=sys.argv)
     drone = Device(int(args[1]))
-    rospy.spin()
-    
-    # print("Device ID : ",drone.get_device_id())
-    # puf_table = drone.PUF_table
-    
-    # # get the first challenge in the puf table
-    # challenge = list(puf_table.keys())[0]
-    # response = puf_table[challenge]
-    # print("CRP queried from the table : ",challenge, response)
-    # response = drone.PUF(challenge)
-    # print("PUF(challenge) = ", response)
-
-    # # encryption and decryption test
-    # print("Encryption and Decryption test")
-    # message="hello world"
-    # print("Plain text: ", message)
-    # tag,nonce,ciphertext = drone.encrypt(message,challenge)
-    # de_message = drone.decrypt(tag,nonce,ciphertext,challenge)
-    # print("Decrypted plaintext : ",message)
-
-    # print("Neigbour Device ids") 
-    # links = drone.get_links()
-    # print(links)
-    
-    # print("Message sending and receiving test, monitor in neighbour's terminal")
-    # time.sleep(3)
-    # message = Packet()
-    # message.source = drone.get_device_id()
-    # message.destination = 2
-    # message.data = "Hello from "+str(drone.get_device_id())
-    # print("Sending message: ", message.data)
-    # drone.send_message(message.destination,message)
-
     rospy.spin()
 
 
