@@ -11,8 +11,6 @@ import base64
 import json
 
 class Device:
-    
-    
     def __init__(self, device_id):
         
         # initialize the project path
@@ -68,7 +66,7 @@ class Device:
         # timestamp
         self.timestamp = time.time() # timestamp
     
-    ############################
+    
     def create_links(self):
         for link in self.links:
             if link>self.device_id:
@@ -81,7 +79,8 @@ class Device:
                 self.publisher_list.append(pub)
                 self.pub_links_dict[link] = pub
                 rospy.Subscriber("s"+str(self.device_id)+"x"+str(link)+"s", Packet, self.msgCb)
-    ############################
+                
+    
     def send_message(self,link,message:Packet): # sends message of type Packet to given node
         if link not in self.links:
             print("Link not found")
@@ -89,7 +88,7 @@ class Device:
         else:
             self.pub_links_dict[link].publish(message)
             return True
-    ############################
+    
     def encrypt(self,message,key):
         data = message
         aes_key = key
@@ -102,10 +101,8 @@ class Device:
         tag = hmac.update(cipher.nonce + ciphertext).digest()
 
         return tag,cipher.nonce,ciphertext
-    ############################
+   
     def decrypt(self,tag,nonce,ciphertext,key): # dencrypts, returns tag, nonce and ciphertext
-
-
         aes_key = key
         hmac_key = key
 
@@ -119,16 +116,16 @@ class Device:
         cipher = AES.new(aes_key, AES.MODE_CTR, nonce=nonce)
         message = cipher.decrypt(ciphertext)
         return message.decode()
-    ############################
-    def PUF(self,challenge): # PUF function, gives response for challenges 
+    
+    # PUF function 
+    def PUF(self,challenge):
         if challenge in self.PUF_table:
             return self.PUF_table[challenge]
         else:
             return None
-    ############################
     
-    
-    def msgCb(self,msg:Packet): # message callback, invoked everytime a callback is received
+    # Just print what BS received
+    def msgCb(self,msg:Packet):
         if msg.source == self.device_id:
             pass
         else:
@@ -217,12 +214,38 @@ def find_paths(graph,root): # returns all paths for all leaf nodes
 # Base Station class
 class BS(Device):
     
-    def get_PUF_CRP(self,drone_id,n): # get the nth CRP of the drone with id i
+    def __init__(self, args):
+        super().__init__(0)
+        
+        # all drones list
+        self.drones = list(self.config.keys())
+        self.drones.remove(0)
+        
+        # PUF directory creation
+        self.PUF_directory = {}
+        for i in self.drones: 
+            PUF_table_temp = {}
+            f = open(os.path.join(self.PUF_lookup_path,"PUF_"+str(i)+".bin"), "rb")
+            
+            for j in range(10):
+                challenge = f.read(16)
+                response = f.read(16)
+                PUF_table_temp[challenge] = response
+            f.close()    
+            self.PUF_directory[i] = PUF_table_temp
+        
+        # getting list of paths
+        self.paths = find_paths(self.config,self.device_id)
+        
+        # the first link of all paths
+        self.starting_links = []
+        for path in self.paths:
+            self.starting_links.append(path[0][1])
+
+    def get_PUF_CRP(self,drone_id,n): # get the nth CRP of the drone with id i as a list of challenge and response
         return list(self.PUF_directory[drone_id].keys())[n], list(self.PUF_directory[drone_id].values())[n]
 
-    def create_node_auth_messages(self): # generates auth messages for drones, returns dict with node_id as key and auth_message as value
-        # create the AUTH messsage for all the nodes
-        # message = Challenge[0]+timestamp+Encrypt(random_number+timestamp+R[0],R[0])
+    def create_node_auth_messages(self): # creates authentication messages for all drones using the first challenge
         auth_messages = {}
         for drone in self.drones:
             # get the first challenge of each drone
@@ -232,16 +255,11 @@ class BS(Device):
             self.update_random()
             random_number = self.random
             message = {}
-            # message['challenge'] = challenge.decode()
-            # print(challenge)
-            # print(str(challenge),type(str(challenge)),str(challenge).encode(),type(str(challenge).encode()))
             message['challenge'] = challenge
-
             message['timestamp'] = timestamp
             message['random_number_enc'] = list(self.encrypt(random_number,response))
             message['timestamp_enc'] = list(self.encrypt(str(timestamp).encode(),response))
             message['response_enc'] = list(self.encrypt(response,response))
-            # print("Message for drone ",drone,": ",message)
             auth_messages[drone]=message
         return auth_messages
     
@@ -251,39 +269,30 @@ class BS(Device):
         random_number_enc = msg['random_number_enc']
         timestamp_enc = msg['timestamp_enc']
         response_enc = msg['response_enc']
-        # print(msg['challenge'],msg['timestamp'],msg['random_number_enc'],msg['timestamp_enc'],msg['response_enc'])
         msg_new = {}
         msg_new['challenge'] =  base64.b64encode(challenge).decode('utf-8')
-        
         msg_new['timestamp'] = timestamp
-
         tag = base64.b64encode(random_number_enc[0]).decode('utf-8')
         nonce = base64.b64encode(random_number_enc[1]).decode('utf-8')
         ciphertext = base64.b64encode(random_number_enc[2]).decode('utf-8')
         msg_new['random_number_enc'] = [tag,nonce,ciphertext]
-        
         tag = base64.b64encode(timestamp_enc[0]).decode('utf-8')
         nonce = base64.b64encode(timestamp_enc[1]).decode('utf-8')
         ciphertext = base64.b64encode(timestamp_enc[2]).decode('utf-8')
         msg_new['timestamp_enc'] = [tag,nonce,ciphertext]
-        
         tag = base64.b64encode(response_enc[0]).decode('utf-8')
         nonce = base64.b64encode(response_enc[1]).decode('utf-8')
         ciphertext = base64.b64encode(response_enc[2]).decode('utf-8')
         msg_new['response_enc'] = [tag,nonce,ciphertext]
         return msg_new
     
-    def create_auth_messages(self): # returns a list of dicts (the dicts contain aggregate message for that path)
-
-        node_auth_messages = bs.create_node_auth_messages() #auth_message[i] contains the auth message for ith node
-        
+    def create_auth_messages(self):
+        node_auth_messages = bs.create_node_auth_messages()
         #  preprocessing the messages
         node_auth_messages_new = {}
         for drone in self.drones:
-            node_auth_messages_new[drone] = self.msg_coding(node_auth_messages[drone])
-        
-        
-        authentication_message = [] # a list that contains aggregate path message as items, authentication_message[1] contains aggregate message for path 1
+            node_auth_messages_new[drone] = self.msg_coding(node_auth_messages[drone])        
+        authentication_message = []
         i =0
         for path in bs.paths:
             path = path[0]
@@ -297,95 +306,31 @@ class BS(Device):
             i+=1
         return authentication_message
 
-    def __init__(self, args):
-
-        super().__init__(0)
-
-        ##################################################
-        # list all attributes from the parent class
-        # 1. device_id - 0
-        # 2. PUF_table - table of device 0s CRP 
-        # 3. config - topology
-        # 4. links - neighbours of device 0
-        # 5. random - random number for device 0
-        # 6. pub_links_dict - dictionary of publishers for the links
-        # 7. self.path = "/home/barracuda/catkin_ws/src/smaps_implementation"
-        # 8. self.PUF_lookup_path = os.path.join(self.path, "PUF_lookup")
-        # 9. self.config_path = os.path.join(self.path, "config")
-        # 10. self.bin_path = os.path.join(self.path, "bin")
-
-        # method from the parent class
-        # 1. Bool send_message(link,message:Packet) - send message to a link
-        # 2. void msgCb(msg:Packet) - callback function for message
-        # 3. int get_device_id() - get the device id
-        # 4. dictionary get_PUF_table() - get the PUF table of device 0
-        # 5. list get_links() - get the links of device 0
-        # 6. bytes PUF(challenge) - get the response from the PUF table of device 0
-        # 7. tag, nonce, ciphertext encrypt(message,key) - encrypt the message
-        # 8. string message decrypt(tag,nonce,ciphertext,key) - decrypt the message
-        
-        ##################################################
-        # all drones list
-        self.drones = list(self.config.keys())
-        self.drones.remove(0)
-        
-        ##################################################
-        # PUF directory creation
-        self.PUF_directory = {}
-        for i in self.drones: 
-            PUF_table_temp = {}
-            f = open(os.path.join(self.PUF_lookup_path,"PUF_"+str(i)+".bin"), "rb")
-            
-            for j in range(10):
-                challenge = f.read(16)
-                response = f.read(16)
-                PUF_table_temp[challenge] = response
-            f.close()
-            
-            self.PUF_directory[i] = PUF_table_temp
-        
-        ##################################################
-        # initializing all paths
-        self.paths = find_paths(self.config,self.device_id) #contains list of paths for each leaf node
-        ##################################################
-        # starting links for the paths
-        self.starting_links = [] #contains a list of starting links for each path
-        for path in self.paths:
-            self.starting_links.append(path[0][1])
-        ##################################################
             
 if __name__ == "__main__":
     
     args = rospy.myargv(argv=sys.argv)
     bs = BS(args)
     print(bs.device_id,": Base Station is running...")
-    # prepare the path messages
     auth_messages = bs.create_auth_messages()
-    # print the paths
     print(bs.device_id,": Paths : ",bs.paths)
-    # print the starting links
     print(bs.device_id,": Starting links : ",bs.starting_links)
-    
     print(bs.device_id,": Sending AUTH message to all the neighbouring links of Base Station 0")
 
-    # print("Authentication Messages : ",auth_messages)
-    # auth = bs.create_node_auth_messages()
-    # auth = bs.msg_coding(auth[1])
-    # string = json.dumps(auth)
-    # print(auth,type(auth),len(string))
-
-    # for i in range(len(bs.starting_links)):
-    #     print(bs.device_id,": Aggregate AUTH message of path ",i," : ",auth_messages[i])
-    #     auth_messages[i]  = json.dumps(auth_messages[i])
-
+    print("Initializing the publishers ...")
+    time.sleep(1)
+    
     i =0
     for link in bs.starting_links:
         msg = Packet()
         msg.type = "AUTH"
         msg.source = 0
         msg.destination = link
-        msg.data = "Hello Drone "+str(link)+" from Base Station 0" # this is where you send the message
+
+        # send the auth message here
+        msg.data = "Hello Drone "+str(link)+" from Base Station 0"
         # msg.data = auth_messages[i]
+
         msg.message_queue = bs.paths[i][0]
         print(bs.device_id,": Sending message ",msg," to ",link)
         bs.send_message(link,msg)

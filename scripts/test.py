@@ -66,6 +66,8 @@ class Device:
 
         # timestamp
         self.timestamp = time.time()
+        print(self.pub_links_dict)
+
     ############################
     def create_links(self):
         for link in self.links:
@@ -180,10 +182,13 @@ if __name__ == "__main__":
     # print("New random : ",device.get_random())
     print("ID : ",device.device_id)
     print("PUF : ",device.PUF_table)
-    msg = Packet()
-    msg.source = 1
-    msg.destination = 2
-    msg.data = "Hello"
+    print("Links : ",device.links)
     if device.device_id == 1:
-        print(device.send_message(2,msg))
+        message = Packet()
+        message.source = 1
+        message.destination = 2
+        message.data = "Hello"
+        rospy.sleep(1)
+        print(device.send_message(2,message))
+        print(device.send_message(3,message))
     rospy.spin()

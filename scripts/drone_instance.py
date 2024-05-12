@@ -124,26 +124,15 @@ class Device:
         else:
             return None
     ############################
-    
-    def process_msg_data (self, msg):
-        data_dict = json.loads(msg.data)
-        challenge = data_dict["challenge"]
-        timestamp = data_dict["timestamp"]
-        random_number_enc = data_dict["random_number_enc"]
-        tag = random_number_enc[0]
-        nonce = random_number_enc[0]
-        ciphertext = random_number_enc[0]
-        timestamp_enc = data_dict["timestamp_enc"]
-        response_enc = data_dict["response_enc"]
 
-        return 
-
+    # Message Handling for each node (heart of the protocol)
     def msgCb(self,msg:Packet):
         if msg.source == self.device_id:
             return
         else:
             print("##############################################################")
-            # Message forwarding
+            
+            # AUTH message handling, non leaf node case 
             print(self.device_id,":Received :", msg,"from ",msg.source)
             if msg.type == "AUTH" and msg.destination == self.device_id and self.device_id is not msg.message_queue[-1]:
                 print(self.device_id,":AUTH message received, fowarding to next link")
@@ -152,40 +141,34 @@ class Device:
                 msg_new.type = "AUTH"
                 msg_new.current = msg.current + 1
                 msg_new.destination = msg.message_queue[msg_new.current+1]
+
+                # Response creation and auth forwarding      
                 msg_new.data = msg.data
+                
                 msg_new.message_queue = msg.message_queue
                 print(self.device_id,":Sending message: ", msg_new)
                 self.send_message(msg_new.destination,msg_new)
-                # process challenge here and create response here
-                # processed_data = self.process_msg_data(msg)
-
-
-                
 
             
-            # Message forwarding leaf node case
+            # AUTH message handling leaf node case
             elif msg.type == "AUTH" and msg.destination == self.device_id and self.device_id == msg.message_queue[-1]:
                 print(self.device_id,":AUTH message received, leaf node")
                 print(self.device_id,": ",msg.source," said ", msg.data,"creating a response and sending it back")
-                # reverse the queue and return the message
-                # process challenge here and create a response here
-                # make a response packet, revert the queue, reset current
-                # send the message back to the BS
                 msg_new = Packet()
                 msg_new.source = self.device_id
                 msg_new.type = "RESPONSE"
                 msg_new.message_queue = msg.message_queue[::-1]
                 msg_new.current = 0
                 msg_new.destination = msg_new.message_queue[msg_new.current+1]
+
+                # Create response here
                 msg_new.data = " This for BS, I am "+str(self.device_id)
+                
                 print(self.device_id,":Sending message : ", msg_new," to ",msg_new.destination)
                 self.send_message(msg_new.destination,msg_new)
-                # process msg.data here, authenticate and create response here
-            
-            elif msg.type == "AUTH" and msg.destination is not self.device_id:
-                print(self.device_id,":AUTH message received, not for me")
-                return
-            
+
+
+            # RESPONSE message handling, non leaf node case
             elif msg.type == "RESPONSE" and msg.destination == self.device_id and self.device_id is not msg.message_queue[-1]:
                 print(self.device_id,":RESPONSE message received")
                 print(self.device_id,": ",msg.source," said ", msg.data)
@@ -195,11 +178,23 @@ class Device:
                 msg_new.type = "RESPONSE"
                 msg_new.current = msg.current
                 msg_new.destination = msg.message_queue[msg_new.current+1]
-                msg_new.data = msg.data #modify here
+                
+                # Response appending and forwarding
+                msg_new.data = msg.data
+                
                 msg_new.message_queue = msg.message_queue
                 print(self.device_id,":Sending message : ", msg_new," to ",msg_new.destination)
                 self.send_message(msg_new.destination,msg_new)
-                # process msg.data here, authenticate and create response here    
+            
+            # Unwanted AUTH message cases
+            elif msg.type == "AUTH" and msg.destination is not self.device_id:
+                print(self.device_id,":AUTH message received, not for me")
+                return
+            
+            # Unwanted RESPONSE message case
+            elif msg.type == "RESPONSE" and msg.destination is not self.device_id:
+                print(self.device_id,":RESPONSE message received, not for me")
+                return
 
     
     def get_device_id(self):
