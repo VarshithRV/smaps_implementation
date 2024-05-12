@@ -325,7 +325,7 @@ class BS(Device):
 
         # remove duplicates from legitimate
         legitimate = list(set(legitimate))
-        
+
         # convert all the elements in drone to str
         drones = list(map(str,self.drones))
         illegitimate = list(set(drones) - set(legitimate))
@@ -340,6 +340,8 @@ def SMAPS_protocol(bs:BS):
     print(bs.device_id,": Base Station is running...")
     print(bs.device_id,": Paths : ",bs.paths)
     print(bs.device_id,": Starting links : ",bs.starting_links)
+    print(bs.device_id,": Drones  : ",bs.drones)
+    print(bs.device_id,": PUF directory : ",bs.PUF_directory)
     print(bs.device_id,": Sending AUTH message to all the neighbouring links of Base Station 0")
     print("Initializing the publishers ...")
     time.sleep(1)

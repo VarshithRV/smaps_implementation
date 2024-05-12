@@ -6,4 +6,14 @@
     <node pkg="smaps_implementation" type="drone_instance.py" name="drone3" output="screen" args="3" />
     <node pkg="smaps_implementation" type="drone_instance.py" name="drone4" output="screen" args="4" />
     <node pkg="smaps_implementation" type="drone_instance.py" name="drone5" output="screen" args="5" />
+    <node pkg="smaps_implementation" type="drone_instance.py" name="drone6" output="screen" args="6" />
+    <node pkg="smaps_implementation" type="drone_instance.py" name="drone7" output="screen" args="7" />
+    <node pkg="smaps_implementation" type="drone_instance.py" name="drone8" output="screen" args="8" />
+    <node pkg="smaps_implementation" type="drone_instance.py" name="drone9" output="screen" args="9" />
+    <node pkg="smaps_implementation" type="drone_instance.py" name="drone10" output="screen" args="10" />
+    <node pkg="smaps_implementation" type="drone_instance.py" name="drone11" output="screen" args="11" />
+    <node pkg="smaps_implementation" type="drone_instance.py" name="drone12" output="screen" args="12" />
+    <node pkg="smaps_implementation" type="drone_instance.py" name="drone13" output="screen" args="13" />
+    <node pkg="smaps_implementation" type="drone_instance.py" name="drone14" output="screen" args="14" />
+    <node pkg="smaps_implementation" type="drone_instance.py" name="drone15" output="screen" args="15" />
 </launch>

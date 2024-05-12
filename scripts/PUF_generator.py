@@ -6,7 +6,7 @@ import os, sys
 
 args = sys.argv
 
-n = 10
+n = 100
 m = 10
 
 if len(args) == 3:

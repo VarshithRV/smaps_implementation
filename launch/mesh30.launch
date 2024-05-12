@@ -6,4 +6,29 @@
     <node pkg="smaps_implementation" type="drone_instance.py" name="drone3" output="screen" args="3" />
     <node pkg="smaps_implementation" type="drone_instance.py" name="drone4" output="screen" args="4" />
     <node pkg="smaps_implementation" type="drone_instance.py" name="drone5" output="screen" args="5" />
+    <node pkg="smaps_implementation" type="drone_instance.py" name="drone6" output="screen" args="6" />
+    <node pkg="smaps_implementation" type="drone_instance.py" name="drone7" output="screen" args="7" />
+    <node pkg="smaps_implementation" type="drone_instance.py" name="drone8" output="screen" args="8" />
+    <node pkg="smaps_implementation" type="drone_instance.py" name="drone9" output="screen" args="9" />
+    <node pkg="smaps_implementation" type="drone_instance.py" name="drone10" output="screen" args="10" />
+    <node pkg="smaps_implementation" type="drone_instance.py" name="drone11" output="screen" args="11" />
+    <node pkg="smaps_implementation" type="drone_instance.py" name="drone12" output="screen" args="12" />
+    <node pkg="smaps_implementation" type="drone_instance.py" name="drone13" output="screen" args="13" />
+    <node pkg="smaps_implementation" type="drone_instance.py" name="drone14" output="screen" args="14" />
+    <node pkg="smaps_implementation" type="drone_instance.py" name="drone15" output="screen" args="15" />
+    <node pkg="smaps_implementation" type="drone_instance.py" name="drone16" output="screen" args="16" />
+    <node pkg="smaps_implementation" type="drone_instance.py" name="drone17" output="screen" args="17" />
+    <node pkg="smaps_implementation" type="drone_instance.py" name="drone18" output="screen" args="18" />
+    <node pkg="smaps_implementation" type="drone_instance.py" name="drone19" output="screen" args="19" />
+    <node pkg="smaps_implementation" type="drone_instance.py" name="drone20" output="screen" args="20" />
+    <node pkg="smaps_implementation" type="drone_instance.py" name="drone21" output="screen" args="21" />
+    <node pkg="smaps_implementation" type="drone_instance.py" name="drone22" output="screen" args="22" />
+    <node pkg="smaps_implementation" type="drone_instance.py" name="drone23" output="screen" args="23" />
+    <node pkg="smaps_implementation" type="drone_instance.py" name="drone24" output="screen" args="24" />
+    <node pkg="smaps_implementation" type="drone_instance.py" name="drone25" output="screen" args="25" />
+    <node pkg="smaps_implementation" type="drone_instance.py" name="drone26" output="screen" args="26" />
+    <node pkg="smaps_implementation" type="drone_instance.py" name="drone27" output="screen" args="27" />
+    <node pkg="smaps_implementation" type="drone_instance.py" name="drone28" output="screen" args="28" />
+    <node pkg="smaps_implementation" type="drone_instance.py" name="drone29" output="screen" args="29" />
+    <node pkg="smaps_implementation" type="drone_instance.py" name="drone30" output="screen" args="30" />
 </launch>
