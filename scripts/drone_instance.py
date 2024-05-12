@@ -38,13 +38,22 @@ class Device:
             self.PUF_table[challenge] = response
         f.close()
 
-        # read the yaml file
+        # read the links yaml file
         with open(os.path.join(self.config_path, "links.yaml"), "rb") as stream:
             try:
                 self.config = yaml.safe_load(stream)
             except yaml.YAMLError as exc:
                 print(exc)
-
+        
+        # read the no_comm yaml file
+        with open(os.path.join(self.config_path, "no_comm.yaml"), "rb") as stream:
+            try:
+                self.no_comm = yaml.safe_load(stream)
+            except yaml.YAMLError as exc:
+                print(exc)
+        if self.no_comm is None:
+            self.no_comm = []
+        
         # initialize the links
         ###################
         self.links = self.config[self.device_id]
@@ -73,6 +82,9 @@ class Device:
 
         # extracted response 
         self.extracted_response = None
+
+        # response received flag
+        self.response_received = False
  
 
     
@@ -173,10 +185,19 @@ class Device:
         if msg.source == self.device_id:
             return
         else:
+            # check if device id is in no_comm list
+            if self.device_id in self.no_comm:
+                if self.device_id in self.no_comm:
+                    print("No communication allowed between ",self.device_id," and ",msg.source)
+                    return
+            
             print("##############################################################")
             
             # AUTH message handling, non leaf node case 
             print(self.device_id,":Received :", msg,"from ",msg.source)
+            
+            timer = time.time()
+
             if msg.type == "AUTH" and msg.destination == self.device_id and self.device_id is not msg.message_queue[-1]:
                 print(self.device_id,":AUTH message received, fowarding to next link")
                 
@@ -200,9 +221,29 @@ class Device:
                 msg_new.data = msg.data
                 msg_new.message_queue = msg.message_queue
                 print(self.device_id,":Sending message: ", msg_new)
-
                 # send the message
                 self.send_message(msg_new.destination,msg_new)
+
+                # prepare your own response
+                response = Packet()
+                response.source = self.device_id
+                response.type = "RESPONSE"
+                # slice the msg.message_queue till msg.current and reverse it
+                response.message_queue = msg.message_queue[::-1]
+                response.current = len(response.message_queue) - 1  - msg_new.current
+                response.destination = response.message_queue[response.current+1]
+                response.data = json.dumps(self.auth_response)
+
+                # wait for 0.5 seconds for the response, if not received, then send your own response
+                while time.time() - timer < 0.5:
+                    if self.response_received == True:
+                        print(self.device_id,":Response already received, not sending response")
+                        return
+                
+                print(self.device_id,":Waited for timeout, message not received, sending response")
+                print(self.device_id,":Sending message: ", response)
+                self.send_message(response.destination,response)
+
 
             
             # AUTH message handling leaf node case
@@ -236,6 +277,9 @@ class Device:
 
             # RESPONSE message handling, non leaf node case
             elif msg.type == "RESPONSE" and msg.destination == self.device_id and self.device_id is not msg.message_queue[-1]:
+                
+                self.response_received = True
+
                 print(self.device_id,":RESPONSE message received")
                 print(self.device_id,": ",msg.source," said ", msg.data)
                 msg.current += 1
@@ -253,6 +297,9 @@ class Device:
                 msg_new.message_queue = msg.message_queue
                 print(self.device_id,":Sending message : ", msg_new," to ",msg_new.destination)
                 self.send_message(msg_new.destination,msg_new)
+
+                time.sleep(0.05)
+                self.response_received = False
             
             # Unwanted AUTH message cases
             elif msg.type == "AUTH" and msg.destination is not self.device_id:

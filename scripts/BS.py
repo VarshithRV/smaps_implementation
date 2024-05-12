@@ -134,7 +134,7 @@ class Device:
         else:
             # print(self.device_id,":Received :", msg,"from ",msg.source)
             response = json.loads(msg.data)
-            print(self.device_id,": Aggregate response received : ",response)
+            print(self.device_id,": Aggregate response received from one path : ",response)
             self.auth_responses.append(response)
 
 
@@ -257,6 +257,8 @@ class BS(Device):
         # creating the authentication messages for all drones
         self.auth_messages = self.create_auth_messages() #self.auth_messages[i] contains the authentication message for path i as a dictionary
 
+        self.flatten_auth_messages = self.create_node_auth_messages() #self.flatten_auth_messages[i] contains the authentication message for drone i as a dictionary
+
     # get the nth CRP of the drone with id i as a list of challenge and response
     def get_PUF_CRP(self,drone_id,n):
         return list(self.PUF_directory[drone_id].keys())[n], list(self.PUF_directory[drone_id].values())[n]
@@ -296,14 +298,14 @@ class BS(Device):
 
     # decrypt all the responses received from the drones
     def decrypt_responses(self):
-        for i in range(len(self.auth_messages)):
+        for i in range(len(self.auth_responses)):
             for key in self.auth_responses[i].keys():
                 response = self.auth_responses[i][key]
                 tag = base64.b64decode(response[0])
                 nonce = base64.b64decode(response[1])
                 cipher_text = base64.b64decode(response[2])
                 response_extracted = self.decrypt(tag,nonce,cipher_text,
-                                                  self.PUF_directory[int(key)][base64.b64decode(self.auth_messages[i][int(key)]['challenge'])]
+                                                  self.PUF_directory[int(key)][base64.b64decode(self.flatten_auth_messages[int(key)]['challenge'])]
                                                   )
                 self.auth_responses[i][key] = base64.b64decode(response_extracted)
             
@@ -313,12 +315,12 @@ class BS(Device):
 
         legitimate = []
 
-        for i in range(len(self.auth_messages)):
+        for i in range(len(self.auth_responses)):
             for key in self.auth_responses[i].keys():
-                if self.auth_responses[i][key] == self.PUF_directory[int(key)][base64.b64decode(self.auth_messages[i][int(key)]['challenge'])]:
+                if self.auth_responses[i][key] == self.PUF_directory[int(key)][base64.b64decode(self.flatten_auth_messages[int(key)]['challenge'])]:
                     print("Drone ",key," is authenticated")
                     print("Response received : ",self.auth_responses[i][key])
-                    print("Expected response : ",self.PUF_directory[int(key)][base64.b64decode(self.auth_messages[i][int(key)]['challenge'])])
+                    print("Expected response : ",self.PUF_directory[int(key)][base64.b64decode(self.flatten_auth_messages[int(key)]['challenge'])])
                     legitimate.append(key)
                 else:
                     print("Drone ",key," is not authenticated")
@@ -365,9 +367,13 @@ def SMAPS_protocol(bs:BS):
 
         time.sleep(0.05)
     
+    # Wait for all responses here and assume that all responses are received
+    time.sleep(5)
+
     print("########################################################")
     print("All responses received : ")
     
+    print("Responses : ",bs.auth_responses)
     # get the decrypted responses from the messages
     bs.decrypt_responses()
     
