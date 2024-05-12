@@ -207,7 +207,11 @@ def find_paths(graph,root): # returns all paths for all leaf nodes
     for leaf in leafs:
         path = find_all_paths(mst, root, leaf)
         paths.append(path)
-    return paths
+    paths_new = []
+    for path in paths:
+        path = path[0]
+        paths_new.append(path)
+    return paths_new
 
 
 ##################################################
@@ -240,10 +244,10 @@ class BS(Device):
         # the first link of all paths
         self.starting_links = []
         for path in self.paths:
-            self.starting_links.append(path[0][1])
+            self.starting_links.append(path[1])
 
         # creating the authentication messages for all drones
-        self.auth_messages = self.create_auth_messages()
+        self.auth_messages = self.create_auth_messages() #self.auth_messages[i] contains the authentication message for path i as a dictionary
 
     # get the nth CRP of the drone with id i as a list of challenge and response
     def get_PUF_CRP(self,drone_id,n):
@@ -257,41 +261,27 @@ class BS(Device):
             challenge = list(self.PUF_directory[drone].keys())[0] 
             response = self.PUF_directory[drone][challenge] 
             message = {}
-            message['challenge'] = challenge# of type bytes, challenge
-            message['response_enc'] = list(self.encrypt(response,response))# list of bytes, encrypted response
+            message['challenge'] = base64.b64encode(challenge).decode('utf-8')# convert challenge bytes to string
+            tag,nonce,ciphertext = self.encrypt(response,response)
+            tag =  base64.b64encode(tag).decode('utf-8')
+            nonce = base64.b64encode(nonce).decode('utf-8')
+            ciphertext = base64.b64encode(ciphertext).decode('utf-8')
+            message['response_enc'] = [tag,nonce,ciphertext] # encrypted response, list of tag, nonce and ciphertext
             auth_messages[drone]=message
         return auth_messages
     
-    def msg_coding(self,msg): # flattens the message
-        challenge = msg['challenge']
-        response_enc = msg['response_enc']
-        msg_new = {}
-        msg_new['challenge'] =  base64.b64encode(challenge).decode('utf-8')
-        tag = base64.b64encode(response_enc[0]).decode('utf-8')
-        nonce = base64.b64encode(response_enc[1]).decode('utf-8')
-        ciphertext = base64.b64encode(response_enc[2]).decode('utf-8')
-        msg_new['response_enc'] = [tag,nonce,ciphertext]
-        return msg_new
-    
+    # generate authentication message for each path
     def create_auth_messages(self):
         node_auth_messages = self.create_node_auth_messages()
-        
-        #  flattening the authentication message
-        node_auth_messages_new = {}
-        for drone in self.drones:
-            node_auth_messages_new[drone] = self.msg_coding(node_auth_messages[drone])        
-        
-
         authentication_message = []
         i =0
         for path in self.paths:
-            path = path[0]
             path_message = {}
             for node in path:
                 if node == 0:
                     pass
                 else :
-                    path_message[node] = node_auth_messages_new[node]
+                    path_message[node] = node_auth_messages[node]
             authentication_message.append(path_message)
             i+=1
         return authentication_message
@@ -302,11 +292,9 @@ if __name__ == "__main__":
     args = rospy.myargv(argv=sys.argv)
     bs = BS(args)
     print(bs.device_id,": Base Station is running...")
-    auth_messages = bs.create_auth_messages()
     print(bs.device_id,": Paths : ",bs.paths)
     print(bs.device_id,": Starting links : ",bs.starting_links)
     print(bs.device_id,": Sending AUTH message to all the neighbouring links of Base Station 0")
-
     print("Initializing the publishers ...")
     time.sleep(1)
     
@@ -318,10 +306,10 @@ if __name__ == "__main__":
         msg.destination = link
 
         # send the auth message here
-        msg.data = "Hello Drone "+str(link)+" from Base Station 0"
-        # msg.data = auth_messages[i]
+        # msg.data = "Hello Drone "+str(link)+" from Base Station 0"
+        msg.data = json.dumps(bs.auth_messages[i])
 
-        msg.message_queue = bs.paths[i][0]
+        msg.message_queue = bs.paths[i]
         print(bs.device_id,": Sending message ",msg," to ",link)
         bs.send_message(link,msg)
         print(bs.device_id,": Message sent")
