@@ -332,10 +332,6 @@ class BS(Device):
         drones = list(map(str,self.drones))
         illegitimate = list(set(drones) - set(legitimate))
         
-        print("DRONES registered : ",drones)
-        print("Legitimate drones : ",legitimate)
-        print("Illegitimate drones : ",illegitimate)
-        
         return legitimate, illegitimate
     
 def SMAPSSTAR_protocol(bs:BS):
@@ -401,7 +397,6 @@ def SMAPSSTAR_protocol(bs:BS):
             illegitimate.append(illegitimate_in_path[0])
     
     illegitimate = list(set(illegitimate))
-    print("Illegitimate drones : ",illegitimate)
     
     drone_set = []
     for drone in bs.drones:
