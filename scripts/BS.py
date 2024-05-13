@@ -338,7 +338,7 @@ class BS(Device):
         
         return legitimate, illegitimate
     
-def SMAPS_protocol(bs:BS):
+def SMAPSSTAR_protocol(bs:BS):
     print(bs.device_id,": Base Station is running...")
     print(bs.device_id,": Paths : ",bs.paths)
     print(bs.device_id,": Starting links : ",bs.starting_links)
@@ -378,14 +378,44 @@ def SMAPS_protocol(bs:BS):
     bs.decrypt_responses()
     
     # Authenticating all the nodes in the topology
-    legitimate, illegitimate = bs.authenticate_drones()
+    legitimate, intermediate = bs.authenticate_drones()
+    
+    illegitimate = []
 
-    print("SMAPS protocol finished...")
-    return legitimate, illegitimate
+    # getting confirmed illegitimate drones
+    paths = bs.paths
+    
+    for path in paths:
+        for i in range(len(path)):
+            path[i] = str(path[i])
+
+    
+    for path in paths:
+        illegitimate_in_path = []
+        for node in path:
+            if node in intermediate:
+                illegitimate_in_path.append(node)
+                pass
+        print("Path : ",path," Illegitimate drones : ",illegitimate_in_path)
+        if len(illegitimate_in_path) > 0:
+            illegitimate.append(illegitimate_in_path[0])
+    
+    illegitimate = list(set(illegitimate))
+    print("Illegitimate drones : ",illegitimate)
+    
+    drone_set = []
+    for drone in bs.drones:
+        drone_set.append(str(drone))
+    drone_set = set(drone_set)
+    unauthenticated = list(drone_set - set(legitimate) - set(illegitimate))
+
+    return legitimate, illegitimate, unauthenticated
+
 
 if __name__ == "__main__":
     bs = BS()
     args = rospy.myargv(argv=sys.argv)
-    legitimate, illegitimate = SMAPS_protocol(bs)
+    legitimate, illegitimate,  unauthenticated = SMAPSSTAR_protocol(bs)
     print("Legitimate drones : ",legitimate)
     print("Illegitimate drones : ",illegitimate)
+    print("Unauthenticated drones : ",unauthenticated)
