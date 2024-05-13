@@ -337,23 +337,9 @@ class Device:
 
     def get_config(self):    
         return self.config 
-    
-    
-
-
-
 if __name__ == "__main__":
     
     
     args = rospy.myargv(argv=sys.argv)
     drone = Device(int(args[1]))
     rospy.spin()
-
-
-    
-
-    
-
-
-        
-

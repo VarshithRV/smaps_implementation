@@ -10,7 +10,7 @@ import base64
 import json
 
 class Device:
-    def __init__(self, device_id):
+    def __init__(self, device_id,config):
         
         # initialize the project path
         self.path = "/home/barracuda/catkin_ws/src/smaps_implementation"
@@ -35,12 +35,7 @@ class Device:
             self.PUF_table[challenge] = response
         f.close()
 
-        # read the yaml file
-        with open(os.path.join(self.config_path, "links.yaml"), "rb") as stream:
-            try:
-                self.config = yaml.safe_load(stream)
-            except yaml.YAMLError as exc:
-                print(exc)
+        self.config = config
 
         # initialize the links
         ###################
@@ -226,8 +221,8 @@ def find_paths(graph,root): # returns all paths for all leaf nodes
 # Base Station class
 class BS(Device):
     
-    def __init__(self):
-        super().__init__(0)
+    def __init__(self,config):
+        super().__init__(0,config)
         
         # all drones list
         self.drones = list(self.config.keys())
@@ -406,11 +401,81 @@ def SMAPSSTAR_protocol(bs:BS):
 
     return legitimate, illegitimate, unauthenticated
 
+def RSMAP_protocol():
+    print("Base Station is running the RECURSIVE SMAP Protocol...")
+    legitimate = []
+    illegitimate = []
+    drones = []
+
+    # Get initial topology
+    path = "/home/barracuda/catkin_ws/src/smaps_implementation"
+    config_path = os.path.join(path, "config")
+    with open(os.path.join(config_path, "links.yaml"), "rb") as stream:
+            try:
+                config = yaml.safe_load(stream)
+            except yaml.YAMLError as exc:
+                print(exc)
+    drones = list(config.keys())
+    drones.remove(0)
+    
+    # initialize the base station and run the SMAPSSTAR protocol
+    bs = BS(config)
+    legitimate_temp,illegitimate_temp,unauthenticated_temp = SMAPSSTAR_protocol(bs)
+    
+    print("\n1st iteration :")
+    print("Legitimate drones : ",legitimate_temp)
+    print("Illegitimate drones : ",illegitimate_temp)
+    print("Unauthenticated drones : ",unauthenticated_temp)
+    print("\n")
+    
+    illegitimate = illegitimate_temp
+
+    j = 2
+    while(len(unauthenticated_temp)!=0):
+        # convert the legitimate, illegitimate and unauthenticated drones to int
+        for i in range(len(legitimate_temp)):
+            legitimate_temp[i] = int(legitimate_temp[i])
+
+        for i in range(len(illegitimate_temp)):
+            illegitimate_temp[i] = int(illegitimate_temp[i])
+
+        for i in range(len(unauthenticated_temp)):
+            unauthenticated_temp[i] = int(unauthenticated_temp[i])
+
+        # remove the trace of all illegitimate drones in the configuration
+        for drone in illegitimate_temp:
+            del config[drone]
+            for key in config.keys():
+                if drone in config[key]:
+                    config[key].remove(drone)
+
+        bs = BS(config)
+        legitimate_temp,illegitimate_temp,unauthenticated_temp = SMAPSSTAR_protocol(bs)
+        
+        
+        print(f"\n{j} iteration :")
+        print("Legitimate drones : ",legitimate_temp)
+        print("Illegitimate drones : ",illegitimate_temp)
+        print("Unauthenticated drones : ",unauthenticated_temp)
+        print("\n")
+
+        for i in range(len(illegitimate_temp)):
+            illegitimate_temp[i] = int(illegitimate_temp[i])
+
+        illegitimate.extend(illegitimate_temp)
+        j+=1
+    
+    legitimate = list(set(drones) - set(illegitimate))
+    for i in range(len(legitimate)):
+        legitimate[i] = str(legitimate[i])
+    for i in range(len(illegitimate)):
+        illegitimate[i] = str(illegitimate[i])
+
+    print("Legitimate : ",legitimate)
+    print("Illegitimate : ",illegitimate)
+
+    return legitimate, illegitimate
 
 if __name__ == "__main__":
-    bs = BS()
     args = rospy.myargv(argv=sys.argv)
-    legitimate, illegitimate,  unauthenticated = SMAPSSTAR_protocol(bs)
-    print("Legitimate drones : ",legitimate)
-    print("Illegitimate drones : ",illegitimate)
-    print("Unauthenticated drones : ",unauthenticated)
+    RSMAP_protocol()
